@@ -25,9 +25,22 @@ class TrainingData():
 
 
     
-    def process_census_files(self):
+    def process_census_files(self, *args):
         '''Choose columns to keep and generate some features
         '''
+
+        for census in [(self.c1910, '1910'), (self.c1920, '1920')]:
+            for variable in [('first_init', 'pr_name_gn'), ('last_init', 'last'), ('first_sdx', 'pr_name_gn')]:
+                census[0]['{}{}'].format(variable[0], census[1]) = [census[0]['{}{}'].format(variable[1], census[1]).str.get(0) if census[0]['{}{}'].format(variable[1], census[1]).notnull() else '']
+            for variable in ['pr_age', 'pr_imm_year']:
+                census[0]['{}{}'].format(variable, census[1]) = [pd.to_numeric(census[0]['{}{}'].format(variable, census[1])) if census[0]['{}{}'].format(variable, census[1]).notnull() else '']
+            census[0]['last_sdx{}'].format(census[1]) = [sdx(x) for x in census[0]['last{}'].format(census[1])]
+
+        c1920 = c1920[c1920['pr_age1920']>9]
+        keep = [bool(1-(x>1911 and x<1921)) for x in c1920['pr_imm_year1920']]
+        c1920 = c1920[keep]
+        del keep
+
         
     def create_bins(self, *args):
         '''Choose what you want to bin on.
