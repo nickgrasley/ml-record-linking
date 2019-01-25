@@ -94,7 +94,7 @@ class ModelTrainer():
         return self.gs.predict(X_test)
 
 
-    def classification_report(self, X_test, y_test):
+    def report(self, X_test, y_test):
         """Show classification report given the labels of the test data
         Parameters:
             X_test(ndarray(n,D)): Test data
