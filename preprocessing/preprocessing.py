@@ -39,7 +39,7 @@ class Substring(BaseEstimator, TransformerMixin):
         elif type(X) == np.ndarray:
             return np.c_[X, X[:,self.col_idx].astype(f"<U{self.str_len}")] #FIXME allow for diff. starting index
         elif type(X) == pd.core.frame.DataFrame:
-            return X[self.col].str[self.start:self.start + self.str_len]
+            return X[self.col].str[self.start:self.start + self.str_len] #FIXME
         else:
             raise Exception("{} data type input to Substring".format(type(X)))
 
@@ -113,7 +113,7 @@ class DummyRace(BaseEstimator, TransformerMixin):
         return self
     def transform(self, X):
         if type(X) == pd.core.frame.DataFrame:
-            return pd.concat([X, pd.get_dummies(X[self.race_col])])
+            return pd.get_dummies(X, columns=["pr_race_or_color"], drop_first=True)
         elif type(X) == np.ndarray:
             return #FIXME
 
@@ -132,7 +132,7 @@ class BooleanMatch(BaseEstimator, TransformerMixin):
         elif type(X) == np.ndarray:
             return np.c_[X, X[:, self.var_to_match[0]] == X[:, self.var_to_match[1]]]
 
-class CrosswalkMerge(BaseEstimator, TransformerMixin):
+class CrosswalkMerge(BaseEstimator, TransformerMixin): #FIXME
     def __init__(self, crosswalk_file):
         self.crosswalk_file = crosswalk_file
     def fit(self, X, y=None):
@@ -140,7 +140,7 @@ class CrosswalkMerge(BaseEstimator, TransformerMixin):
     def transform(self, X):
         return self
     
-class Bin(BaseEstimator, TransformerMixin):
+class Bin(BaseEstimator, TransformerMixin): #FIXME
     def __init__(self, bin_vars):
         self.bin_vars = bin_vars
     def fit(self, X, y=None):
@@ -148,8 +148,20 @@ class Bin(BaseEstimator, TransformerMixin):
     def transform(self, X):
         return self
 
-def load_data(state="Delaware", year="1910", variables=[]):
+def load_data(state="Delaware", year="1910", variables=["*"]):
     census_files = "R:/JoePriceResearch/record_linking/data/census.db"
     conn = sqlite3.connect(census_files)
     variables = ", ".join(variables)
-    return pd.read_sql_query(f"SELECT {variables} FROM basic{year} LIMIT 1000;", conn)
+    return pd.read_sql_query(f"SELECT {variables} FROM basic{year} LIMIT 1000;", conn) #FIXME remove LIMIT
+
+class LoadData(BaseEstimator, TransformerMixin):
+    def __init__(self, state="Delaware", year="1910", variables=["*"]):
+        self.census_files = "R:/JoePriceResearch/record_linking/data/census.db"
+        self.conn = sqlite3.connect(self.census_files)
+        self.variables = variables
+        self.year = year
+    def fit(self, X=None, y=None):
+        return self
+    def transform(self, X=None):
+        query = f"SELECT {self.variables} FROM basic{self.year} LIMIT 1000;"
+        return pd.read_sql_query(query, self.conn) #FIXME remove LIMIT
