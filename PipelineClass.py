@@ -5,7 +5,7 @@ Ben Christensen
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import classification_report
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from xgboost import XGBClassifier
 from sklearn.pipeline import Pipeline
 
@@ -92,7 +92,6 @@ class ModelTrainer():
             ndarray(n,): Predicted classifications
         """
         return self.gs.predict(X_test)
-
 
     def report(self, X_test, y_test):
         """Show classification report given the labels of the test data
