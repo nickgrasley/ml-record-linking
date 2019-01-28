@@ -141,11 +141,14 @@ class CrosswalkMerge(BaseEstimator, TransformerMixin): #FIXME
         return self
     
 class Bin(BaseEstimator, TransformerMixin): #FIXME
-    def __init__(self, bin_vars):
+    def __init__(self, bin_vars, index):
         self.bin_vars = bin_vars
+        self.index = index
     def fit(self, X, y=None):
         return self
     def transform(self, X):
+        #calculate bins
+        #merge censuses
         return self
 
 def load_data(state="Delaware", year="1910", variables=["*"]):
