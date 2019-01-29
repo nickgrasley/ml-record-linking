@@ -47,12 +47,12 @@ class SDX(BaseEstimator, TransformerMixin):
     def __init__(self, sdx_col_name="soundex", string_col="name"):
         self.sdx_col_name = sdx_col_name
         self.string_col = string_col
-        self.sdx = np.vectorize(jellyfish.soundex())
+        self.sdx = np.vectorize(jellyfish.soundex)
     def fit(self, X, y=None):
         return self
     def transform(self, X):
         if type(X) == pd.core.frame.DataFrame:
-            X[self.sdx_col_name] = self.sdx(X[self.sdx_col_name])
+            X[self.sdx_col_name] = self.sdx(X[self.string_col])
             return X
         elif type(X) == np.ndarray:
             return np.c_[X, self.sdx(X[:,self.sdx_col_name])]
@@ -62,7 +62,7 @@ class SDX(BaseEstimator, TransformerMixin):
 class JW(BaseEstimator, TransformerMixin):
     def __init__(self, jw_col_name="jaro_winkler",
                  string1_col="name1", string2_col="name2"):
-        self.jw = np.vectorize(jellyfish.jaro_winkler())
+        self.jw = np.vectorize(jellyfish.jaro_winkler)
         self.jw_col_name = jw_col_name
         self.string1_col = string1_col
         self.string2_col = string2_col
@@ -113,6 +113,42 @@ class DummyRace(BaseEstimator, TransformerMixin):
         return self
     def transform(self, X):
         if type(X) == pd.core.frame.DataFrame:
+            black = ["Colored", "Mulatto", "Negro", "Dark", "Brown", "Creole",
+                     "1/2 Black", "1/4 Black", "1/8 Black", "Colored &amp; White",
+                     "African"]
+            white = ["Italian", "Portuguese", "Russian", "Spanish", "Polish",
+                     "German", "Slavic", "1/2 White", "Scottish", "English",
+                     "Australian", "Jewish", "French", "Hungarian", "Greek",
+                     "1/4 White", "Swedish", "Part Caucasian", "3/4 White",
+                     "Canadian", "Finnish", "Swiss", "Yugoslavian", "2/3 White",
+                     "White 3/4 Indian", "English &amp; Canadian", "American",
+                     "Texan"] #FIXME visualize labelled race data to check if these bins are true.
+            indian = ["1/2 Indian","1/4 Indian", "Red", "Hindu", "American Indian",
+                      "Sioux Indian", "Cippewa Indian", "Cherokee Indian",
+                      "Indian &amp; White", "Seminole Indian", "Part Indian",
+                      "1/8 Indian", "3/4 Indian", "Indian &amp; Black",
+                      "Cree Indian", "White &amp; Indian", "East Indian",
+                      "Atquanachuke Indian", "Brule Sioux Indian",
+                      "1/2 Indian 1/2 Black", "Indian &amp; Mexican",
+                      "Oneida Indian", "1/2 Cheyenne Indian"]
+            latino = ["Mexican", "Mexican &amp; White", "Mestizo", "Cuban",
+                      "Puerto Rican", "Brazilian"]
+            islander = ["Hawaiian", "Part Hawaiian", "South Sea Islander", "Polynesian",
+                        "Filipino", "Polynesian &amp; Caucasian",
+                        "Polynesian &amp; Japanese", "Guamanian",
+                        "Polynesian &amp; Chinese", "New Zealander"]
+            asian = ["Japanese", "Chinese", "Yellow", "Oriental", 
+                     "Japanese &amp; Hawaiian", "Mongolian", "Vietnamese",
+                     "Part Chinese", "Korean", "1/2 Japanese",
+                     "Chinese &amp; Hawaiian", "Malaysian",
+                     "Asian &amp; Hawaiian", "Siamese", "Japanese &amp; White",
+                     "White &amp; Chinese", "Japanese &amp; Caucasian",
+                     "French &amp; Chinese", "1/8 Japanese"]
+            arab = ["Syrian", "Arabian", "Turkish"]
+            for i in [(black, "Black"), (white, "White"), (indian, "Indian"),
+                      (latino, "Latino"), (islander, "Islander"),
+                      (asian, "Asian"), (arab, "Arab")]:
+                X.loc[X[self.race_col].isin(i[0]), self.race_col] = i[1]
             return pd.get_dummies(X, columns=["pr_race_or_color"], drop_first=True)
         elif type(X) == np.ndarray:
             return #FIXME
