@@ -12,15 +12,15 @@ import jellyfish
 import sqlite3
 
 class DataFrameSelector(BaseEstimator, TransformerMixin): #works
+    """Select variables for certain transformations
+    Parameters:
+        attribute_names (list): The names of the columns you want to select
+        is_string (bool): Whether the columns you are selecting are strings (if np array, implement this to return unicode arrays.)
+        df_out (bool): if true, return a pandas dataframe
+    Returns:
+        A dataframe or array of the selected data.
+    """
     def __init__(self, attribute_names, is_string=False, df_out=True): #FIXME implement choosing string and numeric columns
-        """Select variables for certain transformations
-        Parameters:
-            attribute_names (list): The names of the columns you want to select
-            is_string (bool): Whether the columns you are selecting are strings (if np array, implement this to return unicode arrays.)
-            df_out (bool): if true, return a pandas dataframe
-        Returns:
-            A dataframe or array of the selected data.
-        """
         self.attribute_names = attribute_names
         self.is_string = is_string
         self.df_out = df_out
@@ -95,7 +95,12 @@ class SplitString(BaseEstimator, TransformerMixin): #FIXME test
 class SDX(BaseEstimator, TransformerMixin): #works
     """Generate the soundex code for a column of strings.
     Parameters:
-        sdx_col_name: 
+        sdx_col_name (string): the name of the new column you generate with soundex code
+        string_col (string): the name of the old column of strings
+        (sdx?):
+    Returns:
+        returns a pandas DataFrame with the soundex code for strings 
+        (in one column and the original strings in the other?)
     """
     def __init__(self, sdx_col_name="soundex", string_col="name"):
         self.sdx_col_name = sdx_col_name
@@ -113,6 +118,16 @@ class SDX(BaseEstimator, TransformerMixin): #works
             return self.sdx(X)
 
 class JW(BaseEstimator, TransformerMixin): #works
+    """Takes in two columns of strings and gives you a column of the Jaro-Winkler
+        score.
+    Parameters:
+        jw_col_name (string): the column name of the jaro-winkler score for the strings that will be returned.
+        string1_col (string): the first column of strings that you want calculate distance for
+        string2_col (string): the column of strings you want to compare the first column to.
+    Returns:
+        returns a numpy with the two columns of strings compared and one column with
+        the J-W scores of the strings in that row. 
+    """
     def __init__(self, jw_col_name=["name_gn_jw"],
                  string1_col=["pr_name_gn1910"], string2_col=["pr_name_gn1920"]):
         self.jw = np.vectorize(jellyfish.jaro_winkler)
@@ -130,6 +145,13 @@ class JW(BaseEstimator, TransformerMixin): #works
             return np.c_[X, self.jw(X[:,self.string1_col], X[:,self.string2_col])]
 
 class DropVars(BaseEstimator, TransformerMixin): #works
+    """Takes a dataFrame and returns a dataframe with the columns deleted that you wanted to drop
+    Parameters:
+        cols_to_drop (list): the names of the columns that you want to drop from a dataframe
+    Returns:
+        a pandas DataFrame that is copy of the one you had to begin with but with the columns
+        you wanted to get rid of removed.
+    """
     def __init__(self, cols_to_drop, both_years=False, years=["1910", "1920"]):
         self.cols_to_drop = cols_to_drop
         self.both_years = both_years
@@ -149,6 +171,15 @@ class DropVars(BaseEstimator, TransformerMixin): #works
             return np.delete(X, self.cols_to_drop, 1)
 
 class DummyGender(BaseEstimator, TransformerMixin): #works but replaces original df as well
+    """Converts a categorical sex column into a column with a 0 for Female and 1 for Male
+    If gender is unkown, enter "nan" in that row.
+    Parameters:
+        sex_col (str): the name of the sex column in the original dataframe
+        drop (bool): if True, drop the original sex column 
+    Returns:
+        A dataframe with the original data, but with a column that converts sex into a dummy 
+        instead of categorical variable.
+    """
     def __init__(self, sex_col="pr_sex_code", drop=True):
         self.sex_col = sex_col
         self.drop = drop
@@ -168,6 +199,14 @@ class DummyGender(BaseEstimator, TransformerMixin): #works but replaces original
 
 class DummyRace(BaseEstimator, TransformerMixin): #works, but needs more testing
     #FIXME condense race to black, white, latino, indian, asian
+    """Convert race into several dummy variables for race: white, latino, black, indian, asian, etc.
+        Still in progress.
+    Parameters:
+        race_col (string): the name of the race column in the dataset
+        drop (bool): if True, drop the original race column
+    Returns:
+        The dataset with several new dummy race variables.
+    """
     def __init__(self, race_col="pr_race_or_color", drop=True):
         self.race_col = race_col
         self.drop = drop
@@ -217,6 +256,12 @@ class DummyRace(BaseEstimator, TransformerMixin): #works, but needs more testing
             return #FIXME
 
 class BooleanMatch(BaseEstimator, TransformerMixin):
+    """
+    Parameters:
+        vars_to_match (list):
+        years (list): The list of years you are comparing
+    Returns:
+    """
     def __init__(self, vars_to_match, years=["1910", "1920"]):
         self.vars_to_match = vars_to_match
         self.years = years
@@ -251,6 +296,16 @@ class FuzzyBoolean(BaseEstimator, TransformerMixin):
         return X
 
 class CrosswalkMerge(BaseEstimator, TransformerMixin): #works
+    """
+    Parameters:
+        crosswalk_file (string): the filename of the crosswalk file you need to access or that you
+                                 have already been using.
+        sql_table_name (string): The name of the SQL table of the census data that you want to pull
+        years (list): the list of census years that you want to pull from
+        index:
+    Returns:
+        A dataframe of labeled ARK lines that has census data merged on from the years we care about.
+    """
     def __init__(self, crosswalk_file, sql_table_name="None", years=["1910", "1920"], index=1):
         self.crosswalk_file = crosswalk_file
         self.sql_table_name = sql_table_name
@@ -277,6 +332,17 @@ class CrosswalkMerge(BaseEstimator, TransformerMixin): #works
  
 #TODO Function to run update merge
 class UpdateMerge(BaseEstimator, TransformerMixin):
+    """This is a new update merge function
+    It's not quite done yet.
+    Parameters:
+        on (string): the name of the column index that you want to merge on.
+        how (string): The merge method that you want to use
+        (unused now I think:)
+        left_on (string): The name of the column index you want to merge on in "X"
+        right_on (string): The name of the column index you want to merge on in "df2"
+    Returns:
+        a merged pandas DataFrame.
+    """
     def __init__(self, on, how, left_on, right_on):
         self.on = on
         self.how = how
@@ -346,6 +412,14 @@ def load_data(state="Delaware", year="1910", variables=["*"]): #works
     return pd.read_sql_query(f"SELECT {variables} FROM basic{year} LIMIT 1000;", conn) #FIXME remove LIMIT
 
 class LoadData(BaseEstimator, TransformerMixin): #FIXME test
+    """I think this one is not done yet
+    Parameters:
+        state (list): The states that you want to pull data for.
+        year (list): The census year that you want to pull data for.
+        variables (list): The variables that you want to pull.
+    Returns:
+        
+    """
     def __init__(self, state="Delaware", year="1910", variables=["*"]):
         self.census_files = "R:/JoePriceResearch/record_linking/data/census.db"
         self.conn = sqlite3.connect(self.census_files)
