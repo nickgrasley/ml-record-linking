@@ -113,8 +113,8 @@ class SDX(BaseEstimator, TransformerMixin): #works
             return self.sdx(X)
 
 class JW(BaseEstimator, TransformerMixin): #works
-    def __init__(self, jw_col_name="jaro_winkler",
-                 string1_col="name1", string2_col="name2"):
+    def __init__(self, jw_col_name=["name_gn_jw"],
+                 string1_col=["pr_name_gn1910"], string2_col=["pr_name_gn1920"]):
         self.jw = np.vectorize(jellyfish.jaro_winkler)
         self.jw_col_name = jw_col_name
         self.string1_col = string1_col
@@ -123,19 +123,28 @@ class JW(BaseEstimator, TransformerMixin): #works
         return self
     def transform(self, X):
         if type(X) == pd.core.frame.DataFrame:
-            X[self.jw_col_name] = self.jw(X[self.string1_col], X[self.string2_col])
+            for new_col, name1, name2 in zip(self.jw_col_name, self.string1_col, self.string2_col):
+                X[new_col] = self.jw(X[name1], X[name2])
             return X
         elif type(X) == np.ndarray:
             return np.c_[X, self.jw(X[:,self.string1_col], X[:,self.string2_col])]
 
 class DropVars(BaseEstimator, TransformerMixin): #works
-    def __init__(self, cols_to_drop):
+    def __init__(self, cols_to_drop, both_years=False, years=["1910", "1920"]):
         self.cols_to_drop = cols_to_drop
+        self.both_years = both_years
+        self.years = years
     def fit(self, X, y=None):
         return self
     def transform(self, X):
         if type(X) == pd.core.frame.DataFrame:
-            return X.drop(self.cols_to_drop, axis=1, inplace=True)
+            if self.both_years:
+                drop_cols = [f"{i}{self.years[0]}" for i in self.cols_to_drop]
+                drop_cols.extend([f"{i}{self.years[1]}" for i in self.cols_to_drop])
+                X.drop(drop_cols, axis=1, inplace=True)
+            else:
+                X.drop(self.cols_to_drop, axis=1, inplace=True)
+            return X
         elif type(X) == np.ndarray:
             return np.delete(X, self.cols_to_drop, 1)
 
@@ -215,12 +224,31 @@ class BooleanMatch(BaseEstimator, TransformerMixin):
         return self
     def transform(self, X):
         if type(X) == pd.core.frame.DataFrame:
-            for var in self.var_to_match:
-                X[f"{var}_match"] = X[f"{var}_{self.years[0]}"] == \
-                                                  X[f"{var}_{self.years[1]}"]
+            for var in self.vars_to_match:
+                try:
+                    X[f"{var}_match"] = X[f"{var}_{self.years[0]}"] == \
+                                        X[f"{var}_{self.years[1]}"]
+                except:
+                    X[f"{var}_match"] = X[f"{var}{self.years[0]}"] == \
+                                        X[f"{var}{self.years[1]}"]
             return X
         elif type(X) == np.ndarray:
             return np.c_[X, X[:, self.var_to_match[0]] == X[:, self.var_to_match[1]]]
+
+class FuzzyBoolean(BaseEstimator, TransformerMixin):
+    def __init__(self, vars_fuzzy, years=["1910", "1920"], year_diff=2):
+        self.vars_fuzzy = vars_fuzzy
+        self.years = years
+        self.year_diff = year_diff
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        for var in self.vars_fuzzy:
+            try:
+                X[f"{var}_fuzzy"] = X[f"{var}_{self.years[0]}"] == X[f"{var}_{self.years[1]}"]
+            except:
+                X[f"{var}_fuzzy"] = X[f"{var}{self.years[0]}"] == X[f"{var}{self.years[1]}"]
+        return X
 
 class CrosswalkMerge(BaseEstimator, TransformerMixin): #works
     def __init__(self, crosswalk_file, sql_table_name="None", years=["1910", "1920"], index=1):
@@ -292,6 +320,24 @@ class Bin(BaseEstimator, TransformerMixin): #FIXME
         #   how="inner" doesn't keep those observations, but I believe both of these
         #   perform the join-by type of operation we want
         return first_census.merge(second_census, how='inner', on="bin")
+
+class AddData(BaseEstimator, TransformerMixin):
+    def __init__(self, file_name, merge_col, use_cols=[]):
+        self.file_name = file_name
+        self.merge_col = merge_col
+        self.use_cols = use_cols
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        new_col = pd.DataFrame()
+        if self.file_name[-3:] == "dta":
+            new_col = pd.read_stata(self.file_name)
+        elif self.file_name[-3:] == "csv":
+            new_col = pd.read_csv(self.file_name)
+        if len(self.use_cols) > 0:
+            new_col = new_col[self.use_cols]
+        X = X.merge(new_col, on=self.merge_col, how="left")
+        return X
 
 def load_data(state="Delaware", year="1910", variables=["*"]): #works
     census_files = "R:/JoePriceResearch/record_linking/data/census.db"

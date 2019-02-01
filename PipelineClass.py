@@ -49,7 +49,7 @@ class ModelTrainer():
         self.cv = cv
         self.scoring = scoring
         self.times = list()
-        self.pipe = Pipeline([("classifier": model) for model in self.models])
+        self.pipe = Pipeline([(f"classifier", model[1]) for model in enumerate(self.models)])
         self.n_jobs = n_jobs
         #Create the parameter grid for the Grid Search
         self.param_grid = [dict(zip(["classifier"] + ["classifier__"+param for param in self.hyper_prms[i].keys()], [[self.models[i]]] + [self.hyper_prms[i][param] for param in self.hyper_prms[i].keys()])) for i in range(len(self.models))]
