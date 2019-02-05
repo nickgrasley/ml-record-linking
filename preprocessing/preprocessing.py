@@ -11,6 +11,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 import jellyfish
 from metaphone import doublemetaphone
 import sqlite3
+from ngram import NGram
 
 class DataFrameSelector(BaseEstimator, TransformerMixin): #works
     """Select variables for certain transformations
@@ -195,6 +196,27 @@ class StringDistance(BaseEstimator, TransformerMixin):
                     X[f"{col}_{self.dist_metric_name}"] = \
                         self.dist_metric(X[f"{col}_{self.years[0]}"],
                                          X["{col}_{self.years[1]}"])
+
+class Bigram(BaseEstimator, TransformerMixin):
+    """Creates a bigram representation of string(s)
+    Parameters:
+        string_col (list): The columns on which you want to perform the ngram,
+                           automatically matching 1910 to 1920.
+        n (int): The number of characters per gram.
+    Returns:
+        An ngram similarity score for the columns.
+    """
+    def __init__(self, string_col=["pr_name_gn"], n=3, years=["1910", "1920"]):
+        self.string_col = string_col
+        self.ngram = np.vectorize(NGram.compare)
+        self.n = n
+        self.years = years
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        for col in self.string_col:
+            X[f"{col}_ngram"] = self.ngram(X[f"{col}{self.years[0]}"], X[f"{col}{self.years[1]}"])
+        return X
 
 class DropVars(BaseEstimator, TransformerMixin): #works
     """Takes a dataFrame and returns a dataframe with the columns deleted that you wanted to drop
