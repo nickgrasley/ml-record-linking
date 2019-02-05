@@ -9,6 +9,7 @@ import numpy  as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 import jellyfish
+from metaphone import doublemetaphone
 import sqlite3
 
 class DataFrameSelector(BaseEstimator, TransformerMixin): #works
@@ -95,27 +96,54 @@ class SplitString(BaseEstimator, TransformerMixin): #FIXME test
 class SDX(BaseEstimator, TransformerMixin): #works
     """Generate the soundex code for a column of strings.
     Parameters:
-        sdx_col_name (string): the name of the new column you generate with soundex code
         string_col (string): the name of the old column of strings
-        (sdx?):
     Returns:
         returns a pandas DataFrame with the soundex code for strings 
         (in one column and the original strings in the other?)
     """
-    def __init__(self, sdx_col_name="soundex", string_col="name"):
-        self.sdx_col_name = sdx_col_name
+    def __init__(self, string_col="name"):
         self.string_col = string_col
         self.sdx = np.vectorize(jellyfish.soundex)
     def fit(self, X, y=None):
         return self
     def transform(self, X):
         if type(X) == pd.core.frame.DataFrame:
-            X[self.sdx_col_name] = self.sdx(X[self.string_col])
+            X[f"{self.string_col}_jw"] = self.sdx(X[self.string_col])
             return X
         elif type(X) == np.ndarray:
             return np.c_[X, self.sdx(X[:,self.sdx_col_name])]
         elif type(X) == pd.core.series.Series:
             return self.sdx(X)
+
+class NYSIIS(BaseEstimator, TransformerMixin):
+    """Generate the NYSIIS code for a column of strings
+    Parameters:
+        
+    Returns:
+    """
+    def __init__(self, string_col=["pr_name_gn"]):
+        self.string_col = string_col
+        self.nysiis = np.vectorize(jellyfish.nysiis)
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        if type(X) == pd.core.frame.DataFrame:
+            for col in self.string_col:
+                X[f"{col}_NYSIIS"] = self.nysiis(X[col])
+            return X
+        
+class PhoneticCode(BaseEstimator, TransformerMixin):
+    def __init__(self, string_col=["pr_name_gn"], encoding="double metaphone"):
+        self.string_col = string_col
+        self.encoding = np.vectorize(doublemetaphone)
+        self.encoding_name = encoding
+        #FIXME refactor the other phonetic encodings here.
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        if type(X) == pd.core.frame.DataFrame:
+            for col in self.string_col:
+                X[f"{col}_{self.encoding_name}"] = self.encoding(X[col])
 
 class JW(BaseEstimator, TransformerMixin): #works
     """Takes in two columns of strings and gives you a column of the Jaro-Winkler
@@ -143,6 +171,30 @@ class JW(BaseEstimator, TransformerMixin): #works
             return X
         elif type(X) == np.ndarray:
             return np.c_[X, self.jw(X[:,self.string1_col], X[:,self.string2_col])]
+        
+class StringDistance(BaseEstimator, TransformerMixin):
+    def __init__(self, string_col=["pr_name_gn"],
+                 dist_metric="levenshtein",
+                 years=["1910", "1920"]):
+        self.string_col = string_col
+        self.years = years
+        self.dist_metric = np.vectorize(jellyfish.levenshtein_distance)
+        self.dist_metric_name = dist_metric
+        if dist_metric == "jw":
+            self.dist_metric = np.vectorize(jellyfish.jaro_winkler)
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        if type(X) == pd.core.frame.DataFrame:
+            for col in self.string_col:
+                try:
+                    X[f"{col}_{self.dist_metric_name}"] = \
+                        self.dist_metric(X[f"{col}{self.years[0]}"],
+                                         X["{col}{self.years[1]}"])
+                except:
+                    X[f"{col}_{self.dist_metric_name}"] = \
+                        self.dist_metric(X[f"{col}_{self.years[0]}"],
+                                         X["{col}_{self.years[1]}"])
 
 class DropVars(BaseEstimator, TransformerMixin): #works
     """Takes a dataFrame and returns a dataframe with the columns deleted that you wanted to drop
