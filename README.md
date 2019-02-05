@@ -9,11 +9,11 @@ computing Jaro-Winkler scores, boolean matching, etc.
 - Cleaned_Nebraska_XGBOOST.ipynb: Original feature engineering and model prediction by Amanda Marsden. Used as a reference.
 
 ##TODO List
-[ ] Fix PipelineClass.py and make it into an estimator to use in other pipelines
-[ ] Add name vectors to preprocessing
-[ ] Create bigram/trigram transformer
-[ ] Add geodistance
-[ ] Add feature interactions parameter to xgboost
-[ ] Implement supercomputer capabilities to run models faster (does a GPU have a significant performance gain for xgboost?)
-[ ] Implement a stacking model
-[ ] Create a test file to make sure all elements of the model continue to work after changes.
+- [ ] Fix PipelineClass.py and make it into an estimator to use in other pipelines
+- [ ] Add name vectors to preprocessing
+- [ ] Create bigram/trigram transformer
+- [ ] Add geodistance
+- [ ] Add feature interactions parameter to xgboost
+- [ ] Implement supercomputer capabilities to run models faster (does a GPU have a significant performance gain for xgboost?)
+- [ ] Implement a stacking model
+- [ ] Create a test file to make sure all elements of the model continue to work after changes.
