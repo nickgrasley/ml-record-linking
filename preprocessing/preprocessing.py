@@ -134,17 +134,23 @@ class NYSIIS(BaseEstimator, TransformerMixin):
             return X
         
 class PhoneticCode(BaseEstimator, TransformerMixin):
-    def __init__(self, string_col=["pr_name_gn"], encoding="double metaphone"):
+    def __init__(self, string_col=["pr_name_gn"], encoding="dmetaphone", years=["1910", "1920"]):
         self.string_col = string_col
         self.encoding = np.vectorize(doublemetaphone)
         self.encoding_name = encoding
+        self.years = years
         #FIXME refactor the other phonetic encodings here.
     def fit(self, X, y=None):
         return self
     def transform(self, X):
         if type(X) == pd.core.frame.DataFrame:
             for col in self.string_col:
-                X[f"{col}_{self.encoding_name}"] = self.encoding(X[col])
+                if self.years is not None:
+                    X[f"{col}_{self.encoding_name}{self.years[0]}"] = self.encoding(X[f"{col}{self.years[0]}"])[0]
+                    X[f"{col}_{self.encoding_name}{self.years[1]}"] = self.encoding(X[f"{col}{self.years[1]}"])[0]
+                else:
+                    X[f"{col}_{self.encoding_name}"] = self.encoding(X[col])[0]
+        return X
 
 class JW(BaseEstimator, TransformerMixin): #works
     """Takes in two columns of strings and gives you a column of the Jaro-Winkler
@@ -188,14 +194,10 @@ class StringDistance(BaseEstimator, TransformerMixin):
     def transform(self, X):
         if type(X) == pd.core.frame.DataFrame:
             for col in self.string_col:
-                try:
-                    X[f"{col}_{self.dist_metric_name}"] = \
-                        self.dist_metric(X[f"{col}{self.years[0]}"],
-                                         X["{col}{self.years[1]}"])
-                except:
-                    X[f"{col}_{self.dist_metric_name}"] = \
-                        self.dist_metric(X[f"{col}_{self.years[0]}"],
-                                         X["{col}_{self.years[1]}"])
+                X[f"{col}_{self.dist_metric_name}"] = \
+                    self.dist_metric(X[f"{col}{self.years[0]}"],
+                                     X[f"{col}{self.years[1]}"])
+            return X
 
 class Bigram(BaseEstimator, TransformerMixin):
     """Creates a bigram representation of string(s)
@@ -367,6 +369,59 @@ class FuzzyBoolean(BaseEstimator, TransformerMixin):
                 X[f"{var}_fuzzy"] = X[f"{var}_{self.years[0]}"] == X[f"{var}_{self.years[1]}"]
             except:
                 X[f"{var}_fuzzy"] = X[f"{var}{self.years[0]}"] == X[f"{var}{self.years[1]}"]
+        return X
+
+class EuclideanDistance(BaseEstimator, TransformerMixin):
+    def __init__(self, variables, new_cols, years=["1910", "1920"]):
+        self.variables = variables
+        self.new_cols = new_cols
+        self.years = years
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        for var, col in zip(self.variables, self.new_cols):
+            try:
+                #X.dropna(subset=var, inplace=True)
+                var_list_year1 = []
+                var_list_year2 = []
+                for i in var:
+                    var_list_year1.append(f"{i}{self.years[0]}")
+                    var_list_year2.append(f"{i}{self.years[1]}")
+                X[col] = np.linalg.norm(X[var_list_year1].values - X[var_list_year2].values, axis=1)
+            except:
+                print("There was an error")
+                #X.dropna(subset=var, inplace=True)
+                var_list_year1 = []
+                var_list_year2 = []
+                for i in var:
+                    var_list_year1.append(f"{i}_{self.years[0]}")
+                    var_list_year2.append(f"{i}_{self.years[1]}")
+                X[col] = np.linalg.norm(X[var_list_year1].values - X[var_list_year2].values, axis=1)
+        return X
+
+class ColumnImputer(BaseEstimator, TransformerMixin):
+    def __init__(self, cols, years=["1910", "1920"]):
+        self.cols = cols
+        self.years = years
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        for c in self.cols:
+            X[X[f"{c}{self.years[0]}"] == np.nan] = X[f"{c}{self.years[0]}"].median()
+            X[X[f"{c}{self.years[1]}"] == np.nan] = X[f"{c}{self.years[1]}"].median()
+        return X
+
+class CommonalityWeight(BaseEstimator, TransformerMixin):
+    def __init__(self, cols, comm_cols, years=["1910", "1920"]):
+        self.cols = cols
+        self.comm_cols = comm_cols
+        self.years = years
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        for col, comm_col in zip(self.cols, self.comm_cols):
+            X[col] = X[col] / np.log1p(X[f"{comm_col}_comm{self.years[0]}"].values)
+            X[col] = X[col] / np.log1p(X[f"{comm_col}_comm{self.years[1]}"].values)
         return X
 
 class CrosswalkMerge(BaseEstimator, TransformerMixin): #works
