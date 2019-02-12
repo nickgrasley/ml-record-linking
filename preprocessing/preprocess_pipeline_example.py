@@ -60,7 +60,7 @@ def main(file_name, hyper_params):
                                     ["first", "last", "first", "first", "last",
                                      "last", "bp"])
     
-    final_drop = DropVars(["index", "marstat", "birth_year", "immigration", 
+    final_drop = DropVars(["marstat", "birth_year", "immigration",              #FIXME add index back into drop vars.
                            "race", "rel", "female", "mbp", "fbp", "first_sdxn",
                            "last_sdxn", "first_init", "last_init", "event_lat",
                            "event_lon", "county", "state", "bp",
@@ -76,6 +76,7 @@ def main(file_name, hyper_params):
     pipe.fit_transform(pairs_df)
     #FIXME add a print statement that outputs how many observations were dropped bc of missing values. Throw an error if it's over a certain percentage.
     pairs_df.dropna(inplace=True)
+    return pairs_df
     y = pairs_df.ismatch
     pairs_df.drop(["ismatch"], axis=1, inplace=True)
     X_train, X_test, Y_train, Y_test = train_test_split(pairs_df.values, y.values, test_size=0.33, random_state=94)
@@ -88,6 +89,7 @@ if __name__ == "__main__":
     start = time()
     hyper_params = {"max_depth": [1, 3, 5, 10], "learning_rate": [0.1, 0.01, 0.001], "n_estimators": [100, 2500, 5000]} #xgboost
     #hyper_params = {"class_weight": ["balanced", None]} #logistic
-    model, X_train, X_test, Y_train, Y_test, pairs_df = main("R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/data/more_feat_sample_small.dta", hyper_params)
+    pairs_df = main("R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/data/more_feat_prediction_set2.dta", hyper_params)
+    #model, X_train, X_test, Y_train, Y_test, pairs_df = main("R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/data/more_feat_prediction_set2.dta", hyper_params)
     end = time()
     print(f"time in seconds: {end - start}")

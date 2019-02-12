@@ -71,10 +71,10 @@ class SplitString(BaseEstimator, TransformerMixin): #FIXME test
     """Create new columns for the number of splits found in a string.
        Often used for splitting names into first and middle.
     Parameters:
-        col (string): The name of the column to split
-        split_char (string): The character on which to split (typically whitespace)
-        num_splits (int): The number of splits to perform. -1 is all possible
-        drop (bool): if true, drops the original column
+        col (string): The name of the column to split. Default is "pr_name_gn".
+        split_char (string): The character on which to split (typically whitespace). Default is " "
+        num_splits (int): The number of splits to perform. -1 is all possible. Default is 2.
+        drop (bool): if true, drops the original column. Default is False.
     Returns:
         DataFrame with the split columns
     """
@@ -95,7 +95,7 @@ class SplitString(BaseEstimator, TransformerMixin): #FIXME test
             return X
 
 class SDX(BaseEstimator, TransformerMixin): #works
-    """Generate the soundex code for a column of strings.
+    """Generate the soundex code for a column of strings. (DEPRECATED)
     Parameters:
         string_col (string): the name of the old column of strings
     Returns:
@@ -109,7 +109,7 @@ class SDX(BaseEstimator, TransformerMixin): #works
         return self
     def transform(self, X):
         if type(X) == pd.core.frame.DataFrame:
-            X[f"{self.string_col}_jw"] = self.sdx(X[self.string_col])
+            X[f"{self.string_col}_sdx"] = self.sdx(X[self.string_col])
             return X
         elif type(X) == np.ndarray:
             return np.c_[X, self.sdx(X[:,self.sdx_col_name])]
@@ -117,7 +117,7 @@ class SDX(BaseEstimator, TransformerMixin): #works
             return self.sdx(X)
 
 class NYSIIS(BaseEstimator, TransformerMixin):
-    """Generate the NYSIIS code for a column of strings
+    """Generate the NYSIIS code for a column of strings (DEPRECATED)
     Parameters:
         
     Returns:
@@ -134,9 +134,26 @@ class NYSIIS(BaseEstimator, TransformerMixin):
             return X
         
 class PhoneticCode(BaseEstimator, TransformerMixin):
+    """Generate any phonetic code for a column of strings
+    Parameters:
+        string_col (list): a list of the columns that you want phonetic codes for.
+                           This should be the base name without year. Default is ["pr_name_gn"]
+        encoding (string): the type of encoding that you want to run.
+                           Valid encodings are dmetaphone, NYSIIS, SDX. Default is "dmetaphone".
+        years (list): the two years that are in your dataset. Default is ["1910", "1920"]
+    Returns:
+        The desired phonetic code for the desired columns concatenated with the original dataframe.
+    """
     def __init__(self, string_col=["pr_name_gn"], encoding="dmetaphone", years=["1910", "1920"]):
         self.string_col = string_col
-        self.encoding = np.vectorize(doublemetaphone)
+        if encoding == "dmetaphone":
+            self.encoding = np.vectorize(doublemetaphone)
+        elif encoding == "NYSIIS":
+            self.encoding = np.vectorize(jellyfish.nysiis)
+        elif encoding == "SDX":
+            self.encoding = np.vectorize(jellyfish.soundex)
+        else:
+            raise Exception(f"{encoding} is not a valid phonetic encoding")
         self.encoding_name = encoding
         self.years = years
         #FIXME refactor the other phonetic encodings here.
@@ -154,7 +171,7 @@ class PhoneticCode(BaseEstimator, TransformerMixin):
 
 class JW(BaseEstimator, TransformerMixin): #works
     """Takes in two columns of strings and gives you a column of the Jaro-Winkler
-        score.
+        score. (DEPRECATED)
     Parameters:
         jw_col_name (string): the column name of the jaro-winkler score for the strings that will be returned.
         string1_col (string): the first column of strings that you want calculate distance for
@@ -183,6 +200,13 @@ class StringDistance(BaseEstimator, TransformerMixin):
     def __init__(self, string_col=["pr_name_gn"],
                  dist_metric="levenshtein",
                  years=["1910", "1920"]):
+        """Generate any string distance for a column of strings
+        Parameters:
+            string_col (list): a list of the columns that you want string distance for. This should be the base name without the year.
+            dist_metric (string): the name of the string distance metric that you want to use.
+                                  Valid metrics are jw, levenshtein.
+            years (list): a list of the two years in your dataset.
+        """
         self.string_col = string_col
         self.years = years
         self.dist_metric = np.vectorize(jellyfish.levenshtein_distance)
@@ -202,9 +226,10 @@ class StringDistance(BaseEstimator, TransformerMixin):
 class Bigram(BaseEstimator, TransformerMixin):
     """Creates a bigram representation of string(s)
     Parameters:
-        string_col (list): The columns on which you want to perform the ngram,
-                           automatically matching 1910 to 1920.
+        string_col (list): The columns on which you want to perform the ngram.
+                           These should be base names without the year.
         n (int): The number of characters per gram.
+        years (list): A list of the two years in you dataset. Default is ["1910", "1920"]
     Returns:
         An ngram similarity score for the columns.
     """
@@ -332,11 +357,12 @@ class DummyRace(BaseEstimator, TransformerMixin): #works, but needs more testing
             return #FIXME
 
 class BooleanMatch(BaseEstimator, TransformerMixin):
-    """
+    """Compare two columns, generating True if they match, False if they don't.
     Parameters:
-        vars_to_match (list):
-        years (list): The list of years you are comparing
+        vars_to_match (list): The variables that you want to compare across years. These should be base names without the year.
+        years (list): The list of years you are comparing. Default is ["1910", "1920"]
     Returns:
+        Data with bool columns appended.
     """
     def __init__(self, vars_to_match, years=["1910", "1920"]):
         self.vars_to_match = vars_to_match
@@ -357,6 +383,8 @@ class BooleanMatch(BaseEstimator, TransformerMixin):
             return np.c_[X, X[:, self.var_to_match[0]] == X[:, self.var_to_match[1]]]
 
 class FuzzyBoolean(BaseEstimator, TransformerMixin):
+    """Run a fuzzy compare of two values. Better to use absolute distance where possible.
+    """
     def __init__(self, vars_fuzzy, years=["1910", "1920"], year_diff=2):
         self.vars_fuzzy = vars_fuzzy
         self.years = years
@@ -372,6 +400,14 @@ class FuzzyBoolean(BaseEstimator, TransformerMixin):
         return X
 
 class EuclideanDistance(BaseEstimator, TransformerMixin):
+    """Calculate the Euclidean distance between variables in each year.
+    Parameters:
+        variables (list): The variables that you want to calculate Euclidean distance for. These should be base names without the year.
+        new_cols  (list): The names of the columns of the generated Euclidean distances.
+        years     (list): The two years in your dataset. Default is ["1910", "1920"]
+    Return:
+        Dataset with euclidean distance columns appended.
+    """
     def __init__(self, variables, new_cols, years=["1910", "1920"]):
         self.variables = variables
         self.new_cols = new_cols
@@ -400,6 +436,14 @@ class EuclideanDistance(BaseEstimator, TransformerMixin):
         return X
 
 class ColumnImputer(BaseEstimator, TransformerMixin):
+    """Impute missing values for columns. Only median is currently implemented.
+    Parameters:
+        cols (list): The list of columns that you want to impute. These are names without the year.
+                     All columns will have the same imputation.
+        years (list): A list of the two years in the dataset. Default is ["1910", "1920"]
+    Return:
+        Dataset with corrected missing values for the specified columns.
+    """
     def __init__(self, cols, years=["1910", "1920"]):
         self.cols = cols
         self.years = years
@@ -412,6 +456,15 @@ class ColumnImputer(BaseEstimator, TransformerMixin):
         return X
 
 class CommonalityWeight(BaseEstimator, TransformerMixin):
+    """Divide the desired columns by the log commonality of the observation's value
+    Parameters:
+        cols (list): The names of the columns that you want to transform. These are base names without the year.
+        comm_cols (list): The names of the columns that contain commonality weights.
+                          Index i of this list should be the commonality of index i in cols.
+        years (list): A list of the two years in the dataset. Default is ["1910", "1920"]
+    Returns:
+        Dataset with desired columns divded by the log of the commonality score.
+    """
     def __init__(self, cols, comm_cols, years=["1910", "1920"]):
         self.cols = cols
         self.comm_cols = comm_cols
