@@ -30,6 +30,10 @@ from time import time
 #FIXME bin on residence city
 
 #FIXME 2/6 Things to still do: bplace geodist, bin on residence city (merge not working)
+
+def create_pred_table():
+    return 0
+
 def main(file_name, hyper_params):
     pairs_df = pd.read_stata(file_name)
     pairs_df.loc[pairs_df["immigration1910"].isnull(), "immigration1910"] = 0
