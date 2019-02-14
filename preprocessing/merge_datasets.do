@@ -131,6 +131,10 @@ ren (int_place bp1920 comm) (bp1910 int_place bp_comm1910)
 merge m:1 int_place using R:/JoePriceResearch/RA_work_folders/Nicholas_Grasley/merrill_bplace_comm1910, keep(1 3) keepus(comm) nogen
 ren (int_place comm) (bp1920 bp_comm1920)
 compress
+
+cd R:\JoePriceResearch\record_linking\data\crosswalks
+
+merge m:1 bplace_clean using bplace_lat_lon.dta
 /*
 //now merge w/ matched_1910_1920
 //FIXME merge on city county state. The cities do not match
