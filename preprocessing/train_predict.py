@@ -3,11 +3,15 @@
 """
 Created on Mon Jan 28 16:40:00 2019
 
-@author: thegrasley
+Author: Nick Grasley
+Date Created: 1/28/19
+Date Modified: 2/14/19
+
+This file handles the training and prediction of models using xgboost.
 """
 
 from sklearn.pipeline import Pipeline
-from preprocessing import DropVars, BooleanMatch, JW, EuclideanDistance, Bigram, PhoneticCode, StringDistance, ColumnImputer, CommonalityWeight
+from preprocessing.preprocessing import DropVars, BooleanMatch, JW, EuclideanDistance, Bigram, PhoneticCode, StringDistance, ColumnImputer, CommonalityWeight
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split, GridSearchCV
 
@@ -46,7 +50,8 @@ def predict(file_name, model_file, years):
     if X.columns != model.get_booster().feature_names:
         raise Exception("columns of prediction dataset do not match feature names of model")
     y_pred = pd.DataFrame(model.predict(X.values), columns=["ismatch"])
-    return pd.concat([index_arks_df, y_pred], axis=1)
+    y_pred_proba = pd.DataFrame(model.predict_proba(X.values), columns=["ismatch_proba"])
+    return pd.concat([index_arks_df, y_pred, y_pred_proba], axis=1)
 
 def train(file_name, hyper_params, do_grid_search=False):
     start = time()
@@ -109,4 +114,4 @@ def feature_eng(file_name):
     pipe.fit_transform(pairs_df)
     return pairs_df.dropna()
 
-#xgboost on random_training.dta took 22561 seconds
+#xgboost on random_training.dta took 22561 seconds to train

@@ -9,7 +9,9 @@ whether you want to train or whether you want to predict.
 """
 import sys
 import pickle as pkl
-from train_predict import predict, train, feature_eng
+from sklearn.metrics import confusion_matrix
+from preprocessing import train_predict, create_predictions_file
+from subprocess import call
 
 def run_linking(is_train, model_pickle_file, candidate_pairs_file, census_out_file, features):
     """Run the linking process from start to finish
@@ -25,20 +27,34 @@ def run_linking(is_train, model_pickle_file, candidate_pairs_file, census_out_fi
         if training:
             model with precision and recall of test sets
     """
+    if is_train == "True":
+        is_train = True
+    elif is_train == "False":
+        is_train = False
+    merge_file = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/preprocessing/merge_datasets.do"
     if is_train:
-        return 0 #FIXME train model and pickle.
+        call(["C:/Program Files (x86)/Stata15/StataSE-64.exe", "do", merge_file, candidate_pairs_file, census_out_file])
+        model, X_test, Y_test, X, total_time = train_predict.train(census_out_file)
+        with open(model_pickle_file, "wb") as file:
+            pkl.dump(model, model_pickle_file)
+        con_matrix = confusion_matrix(Y_test, X_test)
+
+        return  model, con_matrix, total_time
     else:
         with open(model_pickle_file, "rb") as file:
             model = pkl.load(file)
-        call(["C:/Program Files (x86)/Stata15/StataSE-64.exe", "merge_datasets.do", candidate_pairs_file, out_file]) #FIXME add file args
+        call(["C:/Program Files (x86)/Stata15/StataSE-64.exe", "do", merge_file, candidate_pairs_file, census_out_file])
         #load data
+        preds = train_predict.predict(census_out_file, model, ["1910", "1920"]) #FIXME make years a function parameter
         #run train_predict.py
+        create_predictions_file.create_prediction_file(preds, "predictions.csv")
         #run create_predictions_file.py
+        return None, None, None
 
 if __name__ == "__main__":
     if len(sys.argv) == 1: #FIXME complete this
         train_or_predict = input("Do you want to train or predict?")
-        if is_train:
+        if train_or_predict:
             raise Exception
         else:
             model_pickle_file = input("Where is the model that you want to use for prediction?")
@@ -46,4 +62,5 @@ if __name__ == "__main__":
             run_linking(False, model_pickle_file, candidate_pairs_file)
             
     else:
-        run_linking(sys.) #FIXME
+       model, con_matrix, total_time = run_linking(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
+       #FIXME output precision recall time

@@ -13,10 +13,10 @@ keep in 1/5000
 drop ark1920 index* ismatch rand_sample
 merge 1:m ark1910 using projects/deep_learning/ml-record-linking/data/training_pairs, keep(3) nogen
 */
-arg candidate_pairs_file out_file
+args candidate_pairs_file out_file
 
 use `candidate_pairs_file', clear
-ren y ismatch
+cap ren y ismatch
 
 //Merge in censuses
 ren index1910 index
@@ -132,9 +132,9 @@ merge m:1 int_place using R:/JoePriceResearch/RA_work_folders/Nicholas_Grasley/m
 ren (int_place comm) (bp1920 bp_comm1920)
 compress
 
-cd R:\JoePriceResearch\record_linking\data\crosswalks
+*cd R:\JoePriceResearch\record_linking\data\crosswalks
 
-merge m:1 bplace_clean using bplace_lat_lon.dta
+*merge m:1 bplace_clean using bplace_lat_lon.dta, keep(1 3) nogen //FIXME check this
 /*
 //now merge w/ matched_1910_1920
 //FIXME merge on city county state. The cities do not match
@@ -146,4 +146,13 @@ pause
 drop _merge
 */
 
+order index1910 ark1910 marstat1910 birth_year1910 immigration1910 race1910 rel1910 ///
+ female1910 mbp1910 fbp1910 first_sdxn1910 last_sdxn1910 first_init1910 last_init1910 ///
+ first1910 last1910 first_name_comm1910 last_name_comm1910 event_lat1910 event_lon1910 ///
+ county1910 state1910 bp1910 bp_comm1910 index1920 ark1920 marstat1920 birth_year1920 ///
+ immigration1920 race1920 rel1920 female1920 mbp1920 fbp1920 first_sdxn1920 last_sdxn1920 ///
+ first_init1920 last_init1920 first1920 last1920 first_name_comm1920 last_name_comm1920 ///
+ event_lat1920 event_lon1920 county1920 state1920 bp1920 bp_comm1920 ismatch
+
 save `out_file', replace
+exit

@@ -1,6 +1,6 @@
 // Streamline cleaning between crosswalk and census
 
-cd R:\JoePriceResearch\RA_work_folders\Neil_Duzett\New_folder
+cd R:\JoePriceResearch\record_linking\projects\deep_learning\ml-record-linking\preprocessing
 use matched_1910_1920.dta
 
 rename county1910 county
