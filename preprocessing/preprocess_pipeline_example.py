@@ -13,6 +13,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 
 import pandas as pd
 from time import time
+import pickle as pkl
 
 #geodist location
 # record_linking/data/crosswalks/event_lat_lon_1910.dta
@@ -30,11 +31,19 @@ from time import time
 #FIXME bin on residence city
 
 #FIXME 2/6 Things to still do: bplace geodist, bin on residence city (merge not working)
+#FIXME to set feature names, use xgboost_model.get_booster().feature_names
 
-def create_pred_table():
-    return 0
+def predict(model_file, prediction_df):
+    feature_eng() #FIXME
+    with open(model_file, "rb") as file:
+        model = pkl.load(file)
+    return model.predict(prediction_df)
 
-def main(file_name, hyper_params):
+def train():
+    X = feature_eng() #FIXME
+    
+
+def feature_eng(file_name, hyper_params, gridsearch, predict, model_file):
     pairs_df = pd.read_stata(file_name)
     pairs_df.loc[pairs_df["immigration1910"].isnull(), "immigration1910"] = 0
     pairs_df.loc[pairs_df["immigration1920"].isnull(), "immigration1920"] = 0
@@ -80,13 +89,12 @@ def main(file_name, hyper_params):
     pipe.fit_transform(pairs_df)
     #FIXME add a print statement that outputs how many observations were dropped bc of missing values. Throw an error if it's over a certain percentage.
     pairs_df.dropna(inplace=True)
-    return pairs_df
     y = pairs_df.ismatch
     pairs_df.drop(["ismatch"], axis=1, inplace=True)
     X_train, X_test, Y_train, Y_test = train_test_split(pairs_df.values, y.values, test_size=0.33, random_state=94)
     #model = gs.fit(X_train, Y_train)
     model = clf.fit(X_train, Y_train)
-    return model, X_train, X_test, Y_train, Y_test, pairs_df
+    return X
 
 #xgboost on random_training.dta took 22561 seconds
 if __name__ == "__main__":

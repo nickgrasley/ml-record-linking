@@ -13,8 +13,9 @@ keep in 1/5000
 drop ark1920 index* ismatch rand_sample
 merge 1:m ark1910 using projects/deep_learning/ml-record-linking/data/training_pairs, keep(3) nogen
 */
+arg candidate_pairs_file out_file
 
-use projects/deep_learning/data/prediction_sets/test2 in 1/10000000, clear
+use `candidate_pairs_file', clear
 ren y ismatch
 
 //Merge in censuses
@@ -140,3 +141,5 @@ merge m:1 county1920 state1920 using data/crosswalks/cities/matched_1910_1920, k
 pause
 drop _merge
 */
+
+save `out_file', replace
