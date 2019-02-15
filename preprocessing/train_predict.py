@@ -47,7 +47,7 @@ def predict(file_name, model_file, years):
     X.drop([f"ark{years[0]}", f"ark{years[1]}", f"index{years[0]}", f"index{years[1]}"], axis=1, inplace=True)
     with open(model_file, "rb") as file:
         model = pkl.load(file)
-    if X.columns != model.get_booster().feature_names:
+    if len(X.columns) != len(model.get_booster().feature_names):
         raise Exception("columns of prediction dataset do not match feature names of model")
     y_pred = pd.DataFrame(model.predict(X.values), columns=["ismatch"])
     y_pred_proba = pd.DataFrame(model.predict_proba(X.values), columns=["ismatch_proba"])

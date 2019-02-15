@@ -154,5 +154,6 @@ order index1910 ark1910 marstat1910 birth_year1910 immigration1910 race1910 rel1
  first_init1920 last_init1920 first1920 last1920 first_name_comm1920 last_name_comm1920 ///
  event_lat1920 event_lon1920 county1920 state1920 bp1920 bp_comm1920 ismatch
 
+drop state_string1920 state_string1910 county_string1920 county_string1910 place1910 place1920
 save `out_file', replace
 exit

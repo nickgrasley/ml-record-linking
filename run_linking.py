@@ -41,11 +41,9 @@ def run_linking(is_train, model_pickle_file, candidate_pairs_file, census_out_fi
 
         return  model, con_matrix, total_time
     else:
-        with open(model_pickle_file, "rb") as file:
-            model = pkl.load(file)
         call(["C:/Program Files (x86)/Stata15/StataSE-64.exe", "do", merge_file, candidate_pairs_file, census_out_file])
         #load data
-        preds = train_predict.predict(census_out_file, model, ["1910", "1920"]) #FIXME make years a function parameter
+        preds = train_predict.predict(census_out_file, model_pickle_file, ["1910", "1920"]) #FIXME make years a function parameter
         #run train_predict.py
         create_predictions_file.create_prediction_file(preds, "predictions.csv")
         #run create_predictions_file.py
