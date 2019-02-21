@@ -36,7 +36,7 @@ def run_linking(is_train, model_pickle_file, candidate_pairs_file, census_out_fi
         call(["C:/Program Files (x86)/Stata15/StataSE-64.exe", "do", merge_file, candidate_pairs_file, census_out_file])
         model, X_test, Y_test, X, total_time = train_predict.train(census_out_file)
         with open(model_pickle_file, "wb") as file:
-            pkl.dump(model, model_pickle_file)
+            pkl.dump(model, file)
         con_matrix = confusion_matrix(Y_test, X_test)
 
         return  model, con_matrix, total_time
