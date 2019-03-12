@@ -253,7 +253,7 @@ class DropVars(BaseEstimator, TransformerMixin): #works
         a pandas DataFrame that is copy of the one you had to begin with but with the columns
         you wanted to get rid of removed.
     """
-    def __init__(self, cols_to_drop, both_years=False, years=["1910", "1920"]):
+    def __init__(self, cols_to_drop=[], both_years=False, years=["1910", "1920"]):
         self.cols_to_drop = cols_to_drop
         self.both_years = both_years
         self.years = years
@@ -364,7 +364,7 @@ class BooleanMatch(BaseEstimator, TransformerMixin):
     Returns:
         Data with bool columns appended.
     """
-    def __init__(self, vars_to_match, years=["1910", "1920"]):
+    def __init__(self, vars_to_match=[], years=["1910", "1920"]):
         self.vars_to_match = vars_to_match
         self.years = years
     def fit(self, X, y=None):
@@ -385,7 +385,7 @@ class BooleanMatch(BaseEstimator, TransformerMixin):
 class FuzzyBoolean(BaseEstimator, TransformerMixin):
     """Run a fuzzy compare of two values. Better to use absolute distance where possible.
     """
-    def __init__(self, vars_fuzzy, years=["1910", "1920"], year_diff=2):
+    def __init__(self, vars_fuzzy=[], years=["1910", "1920"], year_diff=2):
         self.vars_fuzzy = vars_fuzzy
         self.years = years
         self.year_diff = year_diff
@@ -408,7 +408,7 @@ class EuclideanDistance(BaseEstimator, TransformerMixin):
     Return:
         Dataset with euclidean distance columns appended.
     """
-    def __init__(self, variables, new_cols, years=["1910", "1920"]):
+    def __init__(self, variables=[], new_cols=[], years=["1910", "1920"]):
         self.variables = variables
         self.new_cols = new_cols
         self.years = years
@@ -451,8 +451,11 @@ class ColumnImputer(BaseEstimator, TransformerMixin):
         return self
     def transform(self, X):
         for c in self.cols:
-            X[X[f"{c}{self.years[0]}"] == np.nan] = X[f"{c}{self.years[0]}"].median()
-            X[X[f"{c}{self.years[1]}"] == np.nan] = X[f"{c}{self.years[1]}"].median()
+            if c == "immigration":
+                X[X[f"{c}{self.years[0]}"].isnan()] = 0
+                X[X[f"{c}{self.years[1]}"].isnan()] = 0
+            X[X[f"{c}{self.years[0]}"].isnan()] = X[f"{c}{self.years[0]}"].median()
+            X[X[f"{c}{self.years[1]}"].isnan()] = X[f"{c}{self.years[1]}"].median()
         return X
 
 class CommonalityWeight(BaseEstimator, TransformerMixin):
@@ -465,7 +468,7 @@ class CommonalityWeight(BaseEstimator, TransformerMixin):
     Returns:
         Dataset with desired columns divded by the log of the commonality score.
     """
-    def __init__(self, cols, comm_cols, years=["1910", "1920"]):
+    def __init__(self, cols=[], comm_cols=[], years=["1910", "1920"]):
         self.cols = cols
         self.comm_cols = comm_cols
         self.years = years

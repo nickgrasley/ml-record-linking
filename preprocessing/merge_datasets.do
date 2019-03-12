@@ -13,7 +13,7 @@ keep in 1/5000
 drop ark1920 index* ismatch rand_sample
 merge 1:m ark1910 using projects/deep_learning/ml-record-linking/data/training_pairs, keep(3) nogen
 */
-args candidate_pairs_file out_file
+args candidate_pairs_file out_file bplace_geo
 
 use `candidate_pairs_file', clear
 cap ren y ismatch
@@ -22,7 +22,8 @@ cap ren y ismatch
 ren index1910 index
 merge m:1 index using data/census_compact/1910/census1910, keep(3) nogen
 ren (*) (*1910)
-ren (ismatch1910 ark19101910 ark19201910 index19201910) (ismatch ark1910 ark1920 index1920)
+ren (ark19101910 ark19201910 index19201910) (ark1910 ark1920 index1920)
+cap ren ismatch1910 ismatch
 
 ren index1920 index
 merge m:1 index using data/census_compact/1920/census1920, keep(3) nogen
@@ -67,7 +68,6 @@ replace lat = 37.533333 if regexm(event_place, "Richmond (Independent City), Vir
 replace lon = -77.466667 if regexm(event_place, "Richmond (Independent City), Virginia, United States")
 ren (lat lon) (event_lat1910 event_lon1910)
 ren (event_place index1920) (place1910 index)
-compress
 
 merge m:1 index using data/census_compact/1920/place1920, keep(3) nogen
 ren (index place) (index1920 event_place)
@@ -132,9 +132,15 @@ merge m:1 int_place using R:/JoePriceResearch/RA_work_folders/Nicholas_Grasley/m
 ren (int_place comm) (bp1920 bp_comm1920)
 compress
 
-*cd R:\JoePriceResearch\record_linking\data\crosswalks
-
-*merge m:1 bplace_clean using bplace_lat_lon.dta, keep(1 3) nogen //FIXME check this
+//There's a branch cut  for longitude in the Pacific Ocean (i.e. -180, 180 are the same spot),
+//but it's in the middle of nowhere. It's hopefully not a problem, but keep that in mind.
+if "`bplace_geo'" == "True" {
+	ren bp1910 int_place
+	merge m:1 int_place using data/census_compact/dictionaries/bplace_lat_lon, keep(1 3) nogen
+	ren (int_place bp1920 lat lon) (bp1910 int_place bplace_lat1910 bplace_lon1910)
+	merge m:1 int_place using data/census_compact/dictionaries/bplace_lat_lon, keep(1 3) nogen
+	ren (int_place lat lon) (bp1920 bplace_lat1920 bplace_lon1920)
+}
 /*
 //now merge w/ matched_1910_1920
 //FIXME merge on city county state. The cities do not match
@@ -146,14 +152,25 @@ pause
 drop _merge
 */
 
-order index1910 ark1910 marstat1910 birth_year1910 immigration1910 race1910 rel1910 ///
- female1910 mbp1910 fbp1910 first_sdxn1910 last_sdxn1910 first_init1910 last_init1910 ///
- first1910 last1910 first_name_comm1910 last_name_comm1910 event_lat1910 event_lon1910 ///
- county1910 state1910 bp1910 bp_comm1910 index1920 ark1920 marstat1920 birth_year1920 ///
- immigration1920 race1920 rel1920 female1920 mbp1920 fbp1920 first_sdxn1920 last_sdxn1920 ///
- first_init1920 last_init1920 first1920 last1920 first_name_comm1920 last_name_comm1920 ///
- event_lat1920 event_lon1920 county1920 state1920 bp1920 bp_comm1920 ismatch
+if "`bplace_geo'" == "True" {
+	order index1910 ark1910 marstat1910 birth_year1910 immigration1910 race1910 rel1910 ///
+		female1910 mbp1910 fbp1910 first_sdxn1910 last_sdxn1910 first_init1910 last_init1910 ///
+		first1910 last1910 first_name_comm1910 last_name_comm1910 event_lat1910 event_lon1910 ///
+		county1910 state1910 bp1910 bp_comm1910 bplace_lat1910 bplace_lon1910 index1920 ark1920 marstat1920 birth_year1920 ///
+		immigration1920 race1920 rel1920 female1920 mbp1920 fbp1920 first_sdxn1920 last_sdxn1920 ///
+		first_init1920 last_init1920 first1920 last1920 first_name_comm1920 last_name_comm1920 ///
+		event_lat1920 event_lon1920 county1920 state1920 bp1920 bp_comm1920 bplace_lat1920 bplace_lon1920
+}
+else {
+	order index1910 ark1910 marstat1910 birth_year1910 immigration1910 race1910 rel1910 ///
+		female1910 mbp1910 fbp1910 first_sdxn1910 last_sdxn1910 first_init1910 last_init1910 ///
+		first1910 last1910 first_name_comm1910 last_name_comm1910 event_lat1910 event_lon1910 ///
+		county1910 state1910 bp1910 bp_comm1910 index1920 ark1920 marstat1920 birth_year1920 ///
+		immigration1920 race1920 rel1920 female1920 mbp1920 fbp1920 first_sdxn1920 last_sdxn1920 ///
+		first_init1920 last_init1920 first1920 last1920 first_name_comm1920 last_name_comm1920 ///
+		event_lat1920 event_lon1920 county1920 state1920 bp1920 bp_comm1920
+}
 
 drop state_string1920 state_string1910 county_string1920 county_string1910 place1910 place1920
 save `out_file', replace
-exit
+exit, STATA clear

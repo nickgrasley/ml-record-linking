@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Feb 20 16:35:37 2019
+Created on Mon Mar  4 16:54:07 2019
 
 @author: ngrasley
 """
+import sys
 import pandas as pd
 import dask.dataframe as dd
-from candidate_creator import makePairs
-from run_linking import run_linking
+sys.path.append("R:/JoePriceReseearch/record_linking/projects/deep_learning/ml-record-linking/preprocessing")
+from preprocessing.stata_dask import dask_read_stata_delayed_group
+from time import time
 
 def bins():
     return [['cohort1','bp','county','fbp','female','first_init','last_sdxn','race'],
@@ -75,18 +77,86 @@ def bins():
              ['cohort2', 'fbp', 'first_sdxn', 'last_sdxn', 'mbp', 'race', 'state'],
              ['cohort2', 'female', 'first_sdxn', 'last_sdxn', 'mbp', 'race', 'state']]
 
-CEN_DIREC = "R:/JoePriceResearch/record_linking/data/census_compact"
-PAIR_FILE = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/data/pairs"
-MODEL_PKL = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/models/xgboost_more_features.p"
-CEN_OUT_FILE = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/data/temp.dta"
-def main(chunk_index):
-    census1 = dd.from_pandas(pd.read_stata(f"{CEN_DIREC}/1910/census1910.dta"), npartitions=100)
-    census2 = dd.from_pandas(pd.read_stata(f"{CEN_DIREC}/1920/census1920.dta", chunksize=100000)[chunk_index],
-                         npartitions=100)
-    binlists = bins()
-    makePairs(census1, census2, "1910", "1920", binlists).to_stata(f"{PAIR_FILE}_{chunk_index}.dta")
-    run_linking("False", MODEL_PKL, f"{PAIR_FILE}_{chunk_index}.dta", CEN_OUT_FILE, None)
-    return 0
+class Binner():
+    """This handles creating candidate pairs from the compact census. Isaac Riley 
+       created the functions, so contact him if you have questions.
+    """
+    def __init__(self, bins=bins(), years=["1910", "1920"], chunk_size=100000, chunk_num=0):
+        self.bins = bins
+        self.years = years
+        self.chunk_size = chunk_size
+        self.chunk_num = chunk_num
+        self.census1 = None
+        self.census2 = None
+        self.time_taken = -1
+    
+    def load_data_(self, file1, file2):
+        self.census1 = dask_read_stata_delayed_group([file1])
+        df_tmp = pd.read_stata(file2, chunksize=self.chunksize)
+        df_tmp._lines_read = self.chunk_num * self.chunk_size
+        self.census2 = dask_read_stata_delayed_group([df_tmp.get_chunk()])
+        return
+        
+    def delete_data_(self):
+        del self.census1, self.census2
+        return
+        
+    def filterUnmatchables(self, df, isyear2):
+        if isyear2:
+            df =  df[(df['immigration']<int(self.years[0]))|(df['immigration'].isna())]
+        keep = (df['marstat']==0)|(df['female']==0)
+        return df[keep].compute()
+    
+    def getArks(self, df):
+        #index_pairs = index_pairs.rename(columns = {})
+        cw = dask_read_stata_delayed_group(['R:/JoePriceResearch/record_linking/data/census_compact/{0}/int_ark{0}.dta'.format(self.years[0])])
+        df = dd.merge(df, cw, how='inner', on='index'+self.years[0])
+        del cw
+        cw = dask_read_stata_delayed_group(['R:/JoePriceResearch/record_linking/data/census_compact/{0}/int_ark{0}.dta'.format(self.years[1])])
+        df = dd.merge(df, cw, how='inner', on='index'+self.years[1])
+        del cw
+        df = df[['ark'+self.years[0],'ark'+self.years[1],'index'+self.years[0],'index'+self.years[1]]]
+        return df.compute()
+    
+    def makePairs(self):
+        """
+        Parameters:
+            df1: census1
+            df2: census2
+        Returns:
+            Candidate pairs file
+        """
+        start = time()
+        self.load_data_()
+        print(self.census1.shape[0], self.census2.shape[0])
+        print('Filtering unmatchables...')
+        self.census1 = self.filterUnmatchables(self.census1, False).rename(columns={'index':'index'+self.years[0]})
+        self.census2 = self.filterUnmatchables(self.census2, True).rename(columns={'index':'index'+self.years[1]})
+        print(self.census1.shape[0], self.census2.shape[0])
+        # use blockMergeCap, blockMerge, tightenList
+        outpairs = dd.from_pandas(pd.DataFrame(columns=['index'+self.years[0], 'index'+self.years[1]]), npartitions=100)
+        #problems1, problems2 = set([]), set([])
+        print('Binning...')
+        chunky_bins = []
+        for b in self.bins:
+            b.sort()
+            list_tracker = []
+            if b not in list_tracker:
+                new = dd.merge(self.census1, self.census2, on=b, how='inner')[['index'+self.year[0], 'index'+self.year[1]]]
+                #outpairs = outpairs.append(new).drop_duplicates()
+                chunky_bins.append(new)
+                list_tracker.append(b)
+        outpairs = dd.concat(chunky_bins).drop_duplicates()
+        print('Concatenating...')
+        outpairs.compute()
+        for c in outpairs.columns:
+            outpairs[c] = outpairs[c].astype(int)
+        print('Getting arks...')
+        outpairs = self.getArks(outpairs)
+        end = time()
+        print(f'time: {end - start}')
+        self.time_taken = end - start
+        self.delete_data_()
+        return outpairs
 
-if __name__ == "__main__":
-    main()
+
