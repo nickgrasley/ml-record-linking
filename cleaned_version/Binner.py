@@ -4,6 +4,7 @@ Created on Mon Mar  4 16:54:07 2019
 
 @author: ngrasley
 """
+from sklearn.base import BaseEstimator, TransformerMixin
 import sys
 import pandas as pd
 import dask.dataframe as dd
@@ -77,7 +78,7 @@ def bins():
              ['cohort2', 'fbp', 'first_sdxn', 'last_sdxn', 'mbp', 'race', 'state'],
              ['cohort2', 'female', 'first_sdxn', 'last_sdxn', 'mbp', 'race', 'state']]
 
-class Binner():
+class Binner(BaseEstimator, TransformerMixin):
     """This handles creating candidate pairs from the compact census. Isaac Riley 
        created the functions, so contact him if you have questions.
     """
@@ -159,4 +160,8 @@ class Binner():
         self.delete_data_()
         return outpairs
 
-
+    def fit(self, X, y=None):
+        return self
+    
+    def transform(self, X):
+        return self.makePairs()

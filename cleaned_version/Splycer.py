@@ -7,15 +7,16 @@ Created on Mon Mar  4 16:22:08 2019
 import pandas as pd
 import dask.dataframe as dd
 import sys
-sys.path.append("R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking")
+sys.path.append("R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/cleaned_version")
 import pickle as pkl
 from preprocessing.stata_dask import dask_read_stata_delayed_group
 from Binner import Binner
-from CensusCompiler import CensusCompiler
-from FeatureEngineer import FeatureEngineer
+from CensusCompiler   import CensusCompiler
+from FeatureEngineer  import FeatureEngineer
 from TrainerPredictor import TrainerPredictor
+from sklearn.pipeline import Pipeline
 
-class RecordLinker():
+class Splycer():
     """This class handles the entire record linking process from start to finish.
        The intended use of this class is to write a separate file that creates
        Binner, CensusCompiler, FeatureEngineer, and TrainerPredictor specific to
@@ -52,6 +53,7 @@ class RecordLinker():
         self.model = None
         self.labels = None
         self.arks = None
+        self.pipe = None
         if type(candidate_pairs) == str:
             self.candidate_pairs = dask_read_stata_delayed_group([candidate_pairs])
 

@@ -6,6 +6,8 @@ Created on Mon Mar  4 16:54:24 2019
 """
 import dask.dataframe as dd
 from preprocessing.stata_dask import dask_read_stata_delayed_group
+from sklearn.base import BaseEstimator, TransformerMixin
+import warnings
 
 def R_DRIVE_DIRECS(): #FIXME. Write documentation for what is in each of these files.
     BASE = "R:/JoePriceResearch/record_linking/data"
@@ -34,7 +36,7 @@ def R_DRIVE_DIRECS(): #FIXME. Write documentation for what is in each of these f
             "bplace_comm1920"   : f"{BASE}/census_compact/1910/bplace_comm1910.dta",
             "bplace_lat_lon"    : f"{BASE}/census_compact/dictionaries/bplace_lat_lon"} #NO DEDICATED 1920 BPLACE COMM
 
-class CensusCompiler():
+class CensusCompiler(BaseEstimator, TransformerMixin):
     """This class grabs all the data from the census and accompanying crosswalks.
        If you are not working on the R drive, you need to create a dictionary
        similar to the one above. Your dictionary must contain each key (or at
@@ -69,6 +71,7 @@ class CensusCompiler():
             print("Throw some error")
     
     def compile_census(self, ark_pairs):
+        warnings.warn("compile_census deprecated: run transform instead", FutureWarning)
         #FIXME there's some functions that must run before others. Ensure that those occur if the later functions are called.
         for func in self.chosen_variables:
             for y in self.years:
@@ -121,7 +124,7 @@ class CensusCompiler():
         dict_place_group = dict_place_group.drop_duplicates(subset="county_state") #FIXME
         dict_place_group.columns = ["county_state", f"county{year}"]
         data = dd.merge(data, dict_place_group, how="left", on=f"county{year}")
-        data = data.rename(columns={"county": f"county_string{year}"}).compute()
+        data = data.rename(columns={f"county{year}": f"county_string{year}"}).compute()
         
         state_dict = dask_read_stata_delayed_group([self.data_directory[f"state_dict"]])
         state_dict = state_dict.loc[state_dict["state"].str.len == 2, :]
@@ -130,7 +133,7 @@ class CensusCompiler():
         data = dd.merge(data, state_dict, how="left", on=f"state{year}").compute()
         
         county_lat_lon_all = dask_read_stata_delayed_group([self.data_directory["county_lat_lon_all"]])
-        print(data.columns)
+        print(data.info())
         data = dd.merge(data, county_lat_lon_all, how="left", left_on=f"county_string{year}", right_on=f"county").compute()
         data.loc[data[f"event_lat{year}"].isnan(), f"event_lat{year}"] = data.loc[data[f"event_lat{year}"].isnan(), "latitude"]
         data.loc[data[f"event_lon{year}"].isnan(), f"event_lon{year}"] = data.loc[data[f"event_lon{year}"].isnan(), "longitude"]
@@ -149,3 +152,14 @@ class CensusCompiler():
         
     def delete_vars(self, data, vars_to_drop):
         return data.drop(vars_to_drop, axis=1)
+    
+    def fit(self, X, y=None):
+        return self
+    
+    def transform(self, X):
+        #FIXME there's some functions that must run before others. Ensure that those occur if the later functions are called.
+        for func in self.chosen_variables:
+            for y in self.years:
+                X = func(X, y)
+        #FIXME find out best way to drop variables that shouldn't be included.
+        return X

@@ -10,9 +10,10 @@ import pandas as pd
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import confusion_matrix, precision_score, recall_score
+from sklearn.base import BaseEstimator, TransformerMixin
 from time import time
 
-class TrainerPredictor():
+class XGBoostMatch(BaseEstimator, TransformerMixin):
     """This class either trains a new model given the data or generates predictions
        using a previously trained model. Make sure to use set_hyper_params() if
        you are training a new model.
@@ -34,7 +35,7 @@ class TrainerPredictor():
     def set_hyper_params(self, params):
         self.hyper_params = params
         
-    def train(self, data, Y): #FIXME I'm not handling labels correctly
+    def fit(self, data, Y):
         X_train, X_test, Y_train, Y_test = train_test_split(data, Y, test_size=0.20, random_state=94)
         start = time()
         clf = XGBClassifier()
@@ -47,10 +48,13 @@ class TrainerPredictor():
         self.test_precision = precision_score(Y_test, Y_pred)
         self.test_recall = recall_score(Y_test, Y_pred)
         return model
-        
+    
     def predict(self, data):
         with open(self.model_file, "rb") as file:
             model = pkl.load(file)
         Y_pred = pd.DataFrame(model.predict(data), columns=["Y_pred"])
         Y_pred_proba = pd.DataFrame(model.predict_proba(data)[:,1], columns=["Y_pred_proba"])
         return pd.concat([Y_pred, Y_pred_proba], axis=1) #FIXME where do I add in arks?
+    
+    def transform(self, data):
+        return self.predict(data)

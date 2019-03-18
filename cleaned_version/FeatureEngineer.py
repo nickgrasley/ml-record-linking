@@ -4,12 +4,13 @@ Created on Mon Mar  4 16:54:36 2019
 
 @author: ngrasley
 """
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
 import sys
 sys.path.append("R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/preprocessing")
 from preprocessing.preprocessing import EuclideanDistance, PhoneticCode, StringDistance, Bigram, DropVars, BooleanMatch, FuzzyBoolean, ColumnImputer, CommonalityWeight
 
-class FeatureEngineer():
+class FeatureEngineer(BaseEstimator, TransformerMixin):
     """This class generates features from the merged census data. Implemented
        features are listed in self.features_avail. The values in self.features_avail
        are functors in preprocessing.py. Look there for the needed parameters
@@ -38,7 +39,10 @@ class FeatureEngineer():
     def add_feature(self, feature_name, param_dict):
         feat = self.features_avail[feature_name].__init__(**param_dict)
         self.features.append((feature_name, feat)) #FIXME can this take same feature names, or do I have to check for that?
-        
+     
+    def fit(self, X, y=None):
+        return self
+    
     def transform(self, data):
         pipe = Pipeline(self.features)
         pipe.fit_transform(data)

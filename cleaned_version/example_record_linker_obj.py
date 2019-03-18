@@ -5,10 +5,10 @@ Created on Fri Mar  8 15:26:57 2019
 @author: ngrasley
 """
 
-from RecordLinker     import RecordLinker
-from CensusCompiler   import CensusCompiler
-from FeatureEngineer  import FeatureEngineer
-from TrainerPredictor import TrainerPredictor
+from Splycer         import Splycer
+from CensusCompiler  import CensusCompiler
+from FeatureEngineer import FeatureEngineer
+from XGBoostMatch    import XGBoostMatch
 
 import traceback
 
@@ -42,11 +42,11 @@ def main():
             feature_engineer.add_feature(i, j)
         
         #Create the object that trains the model
-        trainer_predictor = TrainerPredictor()
+        trainer_predictor = XGBoostMatch()
         hyper_params = {"max_depth": [3], "learning_rate": [0.01], "n_estimators": [2500]}
         trainer_predictor.set_hyper_params(hyper_params)
         
-        record_linker = RecordLinker(census_compiler=census_compiler, feature_engineer=feature_engineer, trainer_predictor=trainer_predictor)
+        record_linker = Splycer(census_compiler=census_compiler, feature_engineer=feature_engineer, trainer_predictor=trainer_predictor)
         record_linker.get_labels("y")
         record_linker.add_census_data()
         record_linker.create_features()
@@ -55,7 +55,10 @@ def main():
         return record_linker
     except Exception:
         print(traceback.format_exc())
-        return record_linker
+        try:
+            return record_linker
+        except:
+            return None
     
 if __name__ == "__main__":
     record_linker = main()
