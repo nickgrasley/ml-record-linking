@@ -8,7 +8,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
 import sys
 sys.path.append("R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/preprocessing")
-from preprocessing import EuclideanDistance, PhoneticCode, StringDistance, Bigram, DropVars, BooleanMatch, FuzzyBoolean, ColumnImputer, CommonalityWeight
+from Splycer.preprocessing import EuclideanDistance, PhoneticCode, StringDistance, Bigram, DropVars, BooleanMatch, FuzzyBoolean, ColumnImputer, CommonalityWeight
 
 class FeatureEngineer(BaseEstimator, TransformerMixin):
     """This class generates features from the merged census data. Implemented

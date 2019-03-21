@@ -7,14 +7,12 @@ Created on Mon Mar  4 16:22:08 2019
 import pandas as pd
 import dask.dataframe as dd
 import sys
-sys.path.append("R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking")
 import pickle as pkl
-sys.path.append("R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/preprocessing")
 from stata_dask import dask_read_stata_delayed_group
-from cleaned_version.Binner import Binner
-from cleaned_version.CensusCompiler   import CensusCompiler
-from cleaned_version.FeatureEngineer  import FeatureEngineer
-from cleaned_version.XGBoostMatch import XGBoostMatch
+from Binner import Binner
+from CensusCompiler   import CensusCompiler
+from FeatureEngineer  import FeatureEngineer
+from XGBoostMatch import XGBoostMatch
 from sklearn.pipeline import Pipeline
 
 class Splycer():

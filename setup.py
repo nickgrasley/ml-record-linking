@@ -8,8 +8,8 @@ Created on Mon Feb  4 15:46:53 2019
 
 from distutils.core import setup
 
-setup(name="RecLinkPreprocessing",
+setup(name="Splycer",
       version="0.1dev",
-      packages=["preprocessing",],
+      packages=["Splycer",],
       long_description=open("README.md").read()
 )

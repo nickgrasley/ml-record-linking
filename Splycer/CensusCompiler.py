@@ -34,7 +34,7 @@ def R_DRIVE_DIRECS(): #FIXME. Write documentation for what is in each of these f
             "county_lat_lon_all": f"{BASE}/crosswalks/county_lat_lon_all.dta",
             "bplace_comm1910"   : f"{BASE}/census_compact/1910/bplace_comm1910.dta",
             "bplace_comm1920"   : f"{BASE}/census_compact/1910/bplace_comm1910.dta",
-            "bplace_lat_lon"    : f"{BASE}/census_compact/dictionaries/bplace_lat_lon"} #NO DEDICATED 1920 BPLACE COMM
+            "bplace_lat_lon"    : f"{BASE}/census_compact/dictionaries/bplace_lat_lon.dta"} #NO DEDICATED 1920 BPLACE COMM
 #FIXME ADD R:\JoePriceResearch\record_linking\data\crosswalks\census_towns_coor_v6.dta. It's an updated county lat lon
 
 class CensusCompiler(BaseEstimator, TransformerMixin):
@@ -124,25 +124,22 @@ class CensusCompiler(BaseEstimator, TransformerMixin):
         dict_place_group = dask_read_stata_delayed_group([self.data_directory["dict_place_group"]])[["county", "county_state"]]
         dict_place_group = dict_place_group.drop_duplicates(subset="county_state")
         dict_place_group.columns = [f"county_string{year}", f"county{year}"]
-        data = dd.merge(data, dict_place_group, how="left", on=f"county{year}").compute()
+        data = dd.merge(data, dict_place_group, how="left", on=f"county{year}") #Removed compute
         
         state_dict = dask_read_stata_delayed_group([self.data_directory[f"state_dict"]])
         state_dict = state_dict.loc[state_dict["state"].str.len == 2, :]
         state_dict = state_dict.loc[~state_dict["state"].isin(["New Mexico Territory", "Hawaii Territory", "Consular Service"]), :]
         state_dict.columns = [f"state_string{year}", f"state{year}"]
-        data = dd.merge(data, state_dict, how="left", on=f"state{year}").compute()
+        data = dd.merge(data, state_dict, how="left", on=f"state{year}") #Removed compute
         
-        county_lat_lon_all = dask_read_stata_delayed_group([self.data_directory["county_lat_lon_all"]])[["latitude", "longitude", "county"]]
+        county_lat_lon_all = dask_read_stata_delayed_group([self.data_directory["county_lat_lon_all"]])
+        county_lat_lon_all = county_lat_lon_all.drop_duplicates(subset=["county", "state"])
         print(data.info())
-        data = dd.merge(data, county_lat_lon_all, how="left", left_on=f"county_string{year}", right_on=f"county").compute()
+        data = dd.merge(data, county_lat_lon_all, how="left", left_on=[f"county_string{year}", f"state_string{year}"], right_on=["county", "state"]) #Removed compute
         
         data[f"lat{year}"] = data[f"lat{year}"].mask(data[f"lat{year}"].isnull(), data.latitude)
         data[f"lon{year}"] = data[f"lon{year}"].mask(data[f"lon{year}"].isnull(), data.longitude)
-        ''' This does not work in dask like it does in Pandas. You need to use where() or mask()
-        data.loc[data[f"lat{year}"].isnull(), f"lat{year}"] = data.loc[data[f"lat{year}"].isnull(), "latitude"]
-        data.loc[data[f"lon{year}"].isnull(), f"lon{year}"] = data.loc[data[f"lon{year}"].isnull(), "longitude"]
-        '''
-        data = dd.from_pandas(data.drop(["latitude", "longitude", "county"], axis=1), chunksize=10000) #TODO this will likely cause memory issues since drop converts dask to pandas. Find a different way to do this.
+        #data = dd.from_pandas(data.drop(["latitude", "longitude", "county", "state"], axis=1), chunksize=10000) #TODO this will likely cause memory issues since drop converts dask to pandas. Find a different way to do this.
         return data.compute()
         
     def add_bplace_comm(self, data, year):

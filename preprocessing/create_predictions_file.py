@@ -17,11 +17,13 @@ def create_prediction_file(predictions_df, out_file, has_arks=True, ark_pairs_fi
         ark_pairs_file (string): The file where the arks are located if arks are missing from predictions_df
         years (list): The years of the linked censuses.
     """
-    pred_file = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/data/temp.csv"
-    predictions_df.to_csv(pred_file, index=None)
+    pred_file = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/data/predictions.csv"
+    predictions_df.to_csv(pred_file, index=None, mode="a")
+    """
     if has_arks:
         call(["C:/Program Files (x86)/Stata15/StataSE-64.exe", 
               pred_file, years[0], years[1], out_file, 1, ark_pairs_file])
     else:
         call(["C:/Program Files (x86)/Stata15/StataSE-64.exe", 
               pred_file, years[0], years[1], out_file, 0, ark_pairs_file])
+    """

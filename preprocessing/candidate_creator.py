@@ -8,7 +8,7 @@ Created on Tue Feb 12 12:58:10 2019
 
 import pandas as pd
 import dask.dataframe as dd
-from stata_dask import dask_read_stata_delayed_group
+from preprocessing.stata_dask import dask_read_stata_delayed_group
 from time import time
 
 binlists = [['cohort1','bp','county','fbp','female','first_init','last_sdxn','race'],
@@ -124,7 +124,7 @@ def makePairs(df1, df2, year1, year2, binlists):
             #outpairs = outpairs.append(new).drop_duplicates()
             chunky_bins.append(new)
             list_tracker.append(b)
-    outpairs = dd.concat(chunky_bins).drop_duplicates()
+    outpairs = dd.concat(chunky_bins, interleave_partitions=True).drop_duplicates()
     print('Concatenating...')
     outpairs.compute()
     for c in outpairs.columns:

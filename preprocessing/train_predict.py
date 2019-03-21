@@ -11,7 +11,7 @@ This file handles the training and prediction of models using xgboost.
 """
 
 from sklearn.pipeline import Pipeline
-from preprocessing import DropVars, BooleanMatch, JW, EuclideanDistance, Bigram, PhoneticCode, StringDistance, ColumnImputer, CommonalityWeight
+from preprocessing.preprocessing import DropVars, BooleanMatch, JW, EuclideanDistance, Bigram, PhoneticCode, StringDistance, ColumnImputer, CommonalityWeight
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split, GridSearchCV
 

@@ -1,17 +1,23 @@
-# -*- coding: utf-8 -*-
 """
-Created on Wed Feb 20 16:35:37 2019
+This file runs unit test for the file Binner.py in the 
+family search class.
 
-@author: ngrasley
+Author: Ben Branchflower
+Created: 19 March 2019
+Last edited: 19 March 2019
+
+Notes:
+19 mar - Just getting started
+21 
 """
-import sys
-import pandas as pd
-import dask.dataframe as dd
-from preprocessing.candidate_creator import makePairs
-from run_linking import run_linking
 
-def bins():
-    return [['cohort1','bp','county','fbp','female','first_init','last_sdxn','race'],
+# importing the functions to be tested
+from Splycer.Binner import bins
+from Splycer.Binner import Binner
+
+
+def test_bins():
+    assert bins() == [['cohort1','bp','county','fbp','female','first_init','last_sdxn','race'],
             ['cohort1','bp','county','fbp','female','first_sdxn','last_init','mbp'],
             ['cohort1','bp','county','fbp','female','first_sdxn','last_init','race'],
              ['cohort1', 'bp', 'county', 'fbp', 'female', 'first_sdxn', 'last_sdxn'],
@@ -75,20 +81,58 @@ def bins():
              ['cohort2', 'fbp', 'female', 'first_sdxn', 'last_sdxn', 'race', 'state'],
              ['cohort2', 'fbp', 'first_sdxn', 'last_sdxn', 'mbp', 'race', 'state'],
              ['cohort2', 'female', 'first_sdxn', 'last_sdxn', 'mbp', 'race', 'state']]
+               
+    
+def test_init(obj, *args):
+    assert obj.bins == args[0], 'bins not properly assigned'
+    assert obj.years == args[1], 'years not properly assigned'
+    assert obj.chunk_size == args[2], 'chunk_size not properly assigned'
+    assert obj.chunk_num == args[3], 'chunk_num not properly assigned'
+    assert obj.census1 is None, 'census1 is not None'
+    assert obj.census2 is None, 'census2 is not None'
+    assert obj.time_taken == -1, 'time taken is not -1'
+    
+  
+def test_load_data():
+    return None
 
-CEN_DIREC = "R:/JoePriceResearch/record_linking/data/census_compact"
-PAIR_FILE = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/data/pairs"
-MODEL_PKL = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/models/xgboost_more_features.p"
-CEN_OUT_FILE = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/data/temp_cen_out.dta"
-def main(chunk_index):
-    census1 = dd.from_pandas(pd.read_stata(f"{CEN_DIREC}/1910/census1910.dta"), npartitions=100)
-    census2 = pd.read_stata(f"{CEN_DIREC}/1920/census1920.dta", chunksize=100000)
-    census2._lines_read = chunk_index * 100000
-    census2 = dd.from_pandas(census2.get_chunk(), npartitions=100)
-    binlists = bins()
-    makePairs(census1, census2, "1910", "1920", binlists).to_stata(f"{PAIR_FILE}_{chunk_index}.dta", write_index=False)
-    run_linking("False", MODEL_PKL, f"{PAIR_FILE}_{chunk_index}.dta", CEN_OUT_FILE, None)
-    return 0
 
-if __name__ == "__main__":
-    main(0)
+def test_delete_data():
+    return None
+    
+
+def test_filter_unmatchables():
+    return None
+    
+    
+def test_get_arks():
+    return None
+    
+    
+def test_make_pairs():
+    return None
+    
+    
+def test_fit():
+    return None
+    
+    
+def test_transform():
+    return None
+    
+    
+    
+if __name__ == '__main__':
+    # defining the functions
+    # exec(open('../Binner.py').read())
+    
+    # running the tests
+    test_bins()    
+    
+    test_args = [(bins(),['1910','1920'],100000,0),
+                 ([['cohort','female','mbp'],['female','first_sdxn','state']],
+                      ['1880','1940'],100,5),
+                 (bins(),['1900','1880'],10000000000,200000)]
+    for x in test_args:
+        _binner = Binner(x[0],x[1],x[2],x[3])
+        test_init(_binner, *x)
