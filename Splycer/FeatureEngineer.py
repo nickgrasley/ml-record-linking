@@ -8,7 +8,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
 import sys
 sys.path.append("R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/preprocessing")
-from Splycer.preprocessing import EuclideanDistance, PhoneticCode, StringDistance, Bigram, DropVars, BooleanMatch, FuzzyBoolean, ColumnImputer, CommonalityWeight
+from preprocessing import EuclideanDistance, PhoneticCode, StringDistance, Bigram, DropVars, BooleanMatch, FuzzyBoolean, ColumnImputer, CommonalityWeight
 
 class FeatureEngineer(BaseEstimator, TransformerMixin):
     """This class generates features from the merged census data. Implemented
@@ -37,13 +37,18 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         self.features = []
         
     def add_feature(self, feature_name, param_dict):
-        feat = self.features_avail[feature_name].__init__(**param_dict)
-        self.features.append((feature_name, feat)) #FIXME can this take same feature names, or do I have to check for that?
+        feat = self.features_avail[feature_name]
+        feat.__init__(**param_dict)
+        count = 0
+        while f"{feature_name}_{count}" in dict(self.features):
+            count += 1
+        self.features.append((f"{feature_name}_{count}", feat)) #FIXME can this take same feature names, or do I have to check for that?
+        
      
     def fit(self, X, y=None):
         return self
     
     def transform(self, data):
         pipe = Pipeline(self.features)
-        pipe.fit_transform(data)
+        data = pipe.fit_transform(data)
         return data

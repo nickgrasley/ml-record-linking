@@ -87,15 +87,15 @@ class Binner(BaseEstimator, TransformerMixin):
         self.years = years
         self.chunk_size = chunk_size
         self.chunk_num = chunk_num
-        self.census1 = None
-        self.census2 = None
+        self.census1 = f"R:/JoePriceResearch/record_linking/data/census_compact/{years[0]}/census{years[0]}.dta"
+        self.census2 = f"R:/JoePriceResearch/record_linking/data/census_compact/{years[1]}/census{years[1]}.dta"
         self.time_taken = -1
     
-    def load_data_(self, file1, file2):
-        self.census1 = dask_read_stata_delayed_group([file1])
-        df_tmp = pd.read_stata(file2, chunksize=self.chunksize)
+    def load_data_(self):
+        self.census1 = dask_read_stata_delayed_group([self.census1])
+        df_tmp = pd.read_stata(self.census2, chunksize=self.chunk_size)
         df_tmp._lines_read = self.chunk_num * self.chunk_size
-        self.census2 = dask_read_stata_delayed_group([df_tmp.get_chunk()])
+        self.census2 = dd.from_pandas(df_tmp.get_chunk(), chunksize=25000)
         return
         
     def delete_data_(self):
@@ -106,7 +106,7 @@ class Binner(BaseEstimator, TransformerMixin):
         if isyear2:
             df =  df[(df['immigration']<int(self.years[0]))|(df['immigration'].isna())]
         keep = (df['marstat']==0)|(df['female']==0)
-        return df[keep].compute()
+        return df[keep].persist()
     
     def getArks(self, df):
         #index_pairs = index_pairs.rename(columns = {})
@@ -117,7 +117,7 @@ class Binner(BaseEstimator, TransformerMixin):
         df = dd.merge(df, cw, how='inner', on='index'+self.years[1])
         del cw
         df = df[['ark'+self.years[0],'ark'+self.years[1],'index'+self.years[0],'index'+self.years[1]]]
-        return df.compute()
+        return df.persist()
     
     def makePairs(self):
         """
@@ -149,7 +149,7 @@ class Binner(BaseEstimator, TransformerMixin):
                 list_tracker.append(b)
         outpairs = dd.concat(chunky_bins, interleave_partitions=True).drop_duplicates() #FIXME check if interleave_partitions=True gives what we want. It gives an error otherwise.
         print('Concatenating...')
-        outpairs.compute()
+        outpairs.persist()
         for c in outpairs.columns:
             outpairs[c] = outpairs[c].astype(int)
         print('Getting arks...')

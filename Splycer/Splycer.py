@@ -6,9 +6,10 @@ Created on Mon Mar  4 16:22:08 2019
 """
 import pandas as pd
 import dask.dataframe as dd
-import sys
-import pickle as pkl
 from stata_dask import dask_read_stata_delayed_group
+
+import pickle as pkl
+
 from Binner import Binner
 from CensusCompiler   import CensusCompiler
 from FeatureEngineer  import FeatureEngineer
@@ -40,12 +41,12 @@ class Splycer():
     def __init__(self, binner=Binner(), census_compiler=CensusCompiler(),
                  feature_engineer=FeatureEngineer(), xgboost = XGBoostMatch(),
                  candidate_pairs="R:/JoePriceResearch/record_linking/data/census_tree/training_data/training.dta",
-                 years=["1910", "1920"]):
+                 years=["1910", "1920"], outfile="R:/JoePriceResearch/record_linking/deep_learning/data/predictions/xgboost"):
         '''The 4 classes'''
         self.binner = binner
         self.census_compiler = census_compiler
         self.feature_engineer = feature_engineer
-        self.trainer_predictor = xgboost
+        self.xgboost = xgboost
         
         self.years = years
         self.candidate_pairs = candidate_pairs
@@ -53,8 +54,13 @@ class Splycer():
         self.labels = None
         self.arks = None
         self.pipe = []
+        self.indices = ["index1910", "index1920"]
+        outfile = f"{outfile}_{years[0]}_{years[1]}_{binner.chunk_num}.csv"
+        self.outfile = outfile
         if type(candidate_pairs) == str:
             self.candidate_pairs = dask_read_stata_delayed_group([candidate_pairs])
+            self.candidate_pairs = self.candidate_pairs.dropna(subset=self.indices)
+            self.candidate_pairs = self.candidate_pairs.astype({"index1910": "int32", "index1920": "int32", "y": "int8"}).persist()
 
     """Remove the labels column from the rest of the data and assign to self.labels
        Parameters:
@@ -62,18 +68,18 @@ class Splycer():
     """
     def get_labels(self, label_col):
         self.labels = self.candidate_pairs[label_col]
-        self.candidate_pairs = self.candidate_pairs.drop(label_col, axis=1).compute()
+        self.candidate_pairs = self.candidate_pairs.drop(label_col, axis=1).persist() #FIXME drop w/o making pandas df
     
     """Run this after feature engineering to get the arks."""
     def get_arks(self, has_compact_indices=True):
         if has_compact_indices:
             ark_cols = [f"ark{self.years[0]}", f"ark{self.years[1]}", f"index{self.years[0]}", f"index{self.years[1]}"]
             self.arks = self.candidate_pairs[ark_cols]
-            self.candidate_pairs.drop(ark_cols, axis=1).compute()
+            self.candidate_pairs = self.candidate_pairs.drop(ark_cols, axis=1).persist()
         else:
             ark_cols = [f"ark{self.years[0]}", f"ark{self.years[1]}"]
             self.arks = self.candidate_pairs[ark_cols]
-            self.candidate_pairs.drop(ark_cols, axis=1).compute()
+            self.candidate_pairs = self.candidate_pairs.drop(ark_cols, axis=1).persist()
    
     """Load in the pickled model from the given directory
        Parameters:
@@ -97,7 +103,14 @@ class Splycer():
         
     def train(self):
         """DEPRECATED"""
-        self.model = self.xgboost.train(self.candidate_pairs, self.labels)
+        self.model = self.xgboost.fit(self.candidate_pairs, self.labels).model
+        
+    def predict(self):
+        preds = self.xgboost.predict(self.candidate_pairs)
+        if type(self.arks) == pd.core.frame.DataFrame:
+            pd.concat([self.arks, preds], axis=1).to_csv(self.outfile, index=False)
+        elif type(self.arks) == dd.core.DataFrame:
+            pd.concat([self.arks.compute().reset_index(), preds], axis=1).to_csv(self.outfile, index=False)
         
     def fit(self):
         self.pipe.fit()
@@ -115,3 +128,9 @@ class Splycer():
     """This creates the actual pipeline (you can't add new elements to a pipeline, so you have to create it in one go)"""
     def set_pipeline(self):
         self.pipe = Pipeline(self.pipe)
+        
+    def save(self, filepath, with_candidate_pairs=False):
+        if with_candidate_pairs:
+            self.candidate_pairs.to_parquet(f"{filepath}.parquet")
+        with open(f"{filepath}.splycer", "wb") as file:
+            pkl.dump(file, self)

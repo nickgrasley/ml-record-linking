@@ -17,4 +17,4 @@ class Pruner(BaseEstimator, TransformerMixin):
         good_matches = data[data[self.pred_proba_col] >= self.proba_threshold].compute()
         good_matches.to_csv(self.match_csv_file, mode="a", index=None)
         data = data[data[self.pred_proba_col] < self.proba_threshold]
-        return data.compute()
+        return data.persist()

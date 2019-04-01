@@ -7,6 +7,8 @@ Created on Sat Jan 26 19:49:19 2019
 """
 import numpy  as np
 import pandas as pd
+import dask.dataframe as dd
+import dask.array as da
 from sklearn.base import BaseEstimator, TransformerMixin
 import jellyfish
 from metaphone import doublemetaphone
@@ -147,11 +149,11 @@ class PhoneticCode(BaseEstimator, TransformerMixin):
     def __init__(self, string_col=["pr_name_gn"], encoding="dmetaphone", years=["1910", "1920"]):
         self.string_col = string_col
         if encoding == "dmetaphone":
-            self.encoding = np.vectorize(doublemetaphone)
+            self.encoding = da.frompyfunc(doublemetaphone, 1, 1)
         elif encoding == "NYSIIS":
-            self.encoding = np.vectorize(jellyfish.nysiis)
+            self.encoding = da.frompyfunc(jellyfish.nysiis, 1, 1)
         elif encoding == "SDX":
-            self.encoding = np.vectorize(jellyfish.soundex)
+            self.encoding = da.frompyfunc(jellyfish.soundex, 1, 1)
         else:
             raise Exception(f"{encoding} is not a valid phonetic encoding")
         self.encoding_name = encoding
@@ -160,13 +162,23 @@ class PhoneticCode(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
     def transform(self, X):
-        if type(X) == pd.core.frame.DataFrame:
+        if type(X) == pd.core.frame.DataFrame or type(X) == dd.core.DataFrame:
             for col in self.string_col:
                 if self.years is not None:
-                    X[f"{col}_{self.encoding_name}{self.years[0]}"] = self.encoding(X[f"{col}{self.years[0]}"])[0]
-                    X[f"{col}_{self.encoding_name}{self.years[1]}"] = self.encoding(X[f"{col}{self.years[1]}"])[0]
+                    old_col0 = f"{col}{self.years[0]}"
+                    new_col0 = f"{col}_{self.encoding_name}{self.years[0]}"
+                    old_col1 = f"{col}{self.years[1]}"
+                    new_col1 = f"{col}_{self.encoding_name}{self.years[1]}"
+                    """
+                    X[new_col0] = dd.from_array(self.encoding(X[old_col0].compute()).apply(lambda x: x[0]), chunksize=100000)
+                    X[new_col1] = dd.from_array(self.encoding(X[old_col1].compute()).apply(lambda x: x[0]), chunksize=100000)
+                    """
+                    X = (X.assign(**{new_col0: lambda x: self.encoding(x[old_col0])})
+                          .assign(**{new_col1: lambda x: self.encoding(x[old_col1])}))
                 else:
-                    X[f"{col}_{self.encoding_name}"] = self.encoding(X[col])[0]
+                    new_col = f"{col}_{self.encoding_name}"
+                    #X[f"{col}_{self.encoding_name}"] = dd.from_array(self.encoding(X[col]).apply(lambda x: x[0]), chunksize=100000)
+                    X = X.assign(**{new_col: lambda x: self.encoding(X[col])})
         return X
 
 class JW(BaseEstimator, TransformerMixin): #works
@@ -209,19 +221,26 @@ class StringDistance(BaseEstimator, TransformerMixin):
         """
         self.string_col = string_col
         self.years = years
-        self.dist_metric = np.vectorize(jellyfish.levenshtein_distance)
-        self.dist_metric_name = dist_metric
-        if dist_metric == "jw":
-            self.dist_metric = np.vectorize(jellyfish.jaro_winkler)
+        self.dist_type = dist_metric
     def fit(self, X, y=None):
         return self
     def transform(self, X):
         if type(X) == pd.core.frame.DataFrame:
+            self.dist_metric = np.vectorize(jellyfish.levenshtein_distance)
+        else:
+            self.dist_metric = da.frompyfunc(jellyfish.levenshtein_distance, 2, 1)
+        if self.dist_type == "jw":
+            if type(X) == pd.core.frame.DataFrame:
+                self.dist_metric = np.vectorize(jellyfish.jaro_winkler)
+            else:
+                self.dist_metric = da.frompyfunc(jellyfish.jaro_winkler, 2, 1)
+        if type(X) == pd.core.frame.DataFrame or type(X) == dd.core.DataFrame:
             for col in self.string_col:
-                X[f"{col}_{self.dist_metric_name}"] = \
-                    self.dist_metric(X[f"{col}{self.years[0]}"],
-                                     X[f"{col}{self.years[1]}"])
-            return X
+                col0, col1, new_col = [f"{col}{self.years[0]}", f"{col}{self.years[1]}", f"{col}_{self.dist_type}"]                
+                X = (X.assign(**{col0: X[col0].fillna("")})
+                      .assign(**{col1: X[col1].fillna("")})
+                      .assign(**{new_col: lambda x: self.dist_metric(str(x[col0]), str(x[col1]))}))
+        return X
 
 class Bigram(BaseEstimator, TransformerMixin):
     """Creates a bigram representation of string(s)
@@ -235,14 +254,19 @@ class Bigram(BaseEstimator, TransformerMixin):
     """
     def __init__(self, string_col=["pr_name_gn"], n=3, years=["1910", "1920"]):
         self.string_col = string_col
-        self.ngram = np.vectorize(NGram.compare)
         self.n = n
         self.years = years
     def fit(self, X, y=None):
         return self
     def transform(self, X):
         for col in self.string_col:
-            X[f"{col}_ngram"] = self.ngram(X[f"{col}{self.years[0]}"], X[f"{col}{self.years[1]}"])
+            #X[f"{col}_ngram"] = dd.from_array(self.ngram(X[f"{col}{self.years[0]}"].values.compute(), X[f"{col}{self.years[1]}"].values.compute()), chunksize=100000, columns=f"{col}_ngram")
+            if type(X) == pd.core.frame.DataFrame:
+                self.ngram = np.vectorize(NGram.compare)
+            else:
+                self.ngram = da.frompyfunc(NGram.compare, 2, 1)
+            new_col, col0, col1 = [f"{col}_ngram", f"{col}{self.years[0]}", f"{col}{self.years[1]}"]
+            X = X.assign(**{new_col: lambda x: self.ngram(x[col0], x[col1])})
         return X
 
 class DropVars(BaseEstimator, TransformerMixin): #works
@@ -270,6 +294,14 @@ class DropVars(BaseEstimator, TransformerMixin): #works
             return X
         elif type(X) == np.ndarray:
             return np.delete(X, self.cols_to_drop, 1)
+        elif type(X) == dd.core.DataFrame:
+            if self.both_years:
+                drop_cols = [f"{i}{self.years[0]}" for i in self.cols_to_drop]
+                drop_cols.extend([f"{i}{self.years[1]}" for i in self.cols_to_drop])
+                X = X.drop(drop_cols, axis=1)
+            else:
+                X = X.drop(self.cols_to_drop, axis=1)
+            return X
 
 class DummyGender(BaseEstimator, TransformerMixin): #works but replaces original df as well
     """Converts a categorical sex column into a column with a 0 for Female and 1 for Male
@@ -378,9 +410,17 @@ class BooleanMatch(BaseEstimator, TransformerMixin):
                 except:
                     X[f"{var}_match"] = X[f"{var}{self.years[0]}"] == \
                                         X[f"{var}{self.years[1]}"]
-            return X
         elif type(X) == np.ndarray:
             return np.c_[X, X[:, self.var_to_match[0]] == X[:, self.var_to_match[1]]]
+        elif type(X) == dd.core.DataFrame:
+            for var in self.vars_to_match:
+                try:
+                    new_var, old_var0, old_var1 = [f"{var}_match", f"{var}{self.years[0]}", f"{var}{self.years[1]}"]
+                    X[new_var] = X[old_var0] == X[old_var1]
+                except:
+                    new_var, old_var0, old_var1 = [f"{var}_match", f"{var}_{self.years[0]}", f"{var}_{self.years[1]}"]
+                    X[new_var] = X[old_var0] == X[old_var1]
+        return X
 
 class FuzzyBoolean(BaseEstimator, TransformerMixin):
     """Run a fuzzy compare of two values. Better to use absolute distance where possible.
@@ -399,7 +439,7 @@ class FuzzyBoolean(BaseEstimator, TransformerMixin):
                 X[f"{var}_fuzzy"] = X[f"{var}{self.years[0]}"] == X[f"{var}{self.years[1]}"]
         return X
 
-class EuclideanDistance(BaseEstimator, TransformerMixin):
+class EuclideanDistance(BaseEstimator, TransformerMixin): #FIXME check if this will work with Dask
     """Calculate the Euclidean distance between variables in each year.
     Parameters:
         variables (list): The variables that you want to calculate Euclidean distance for. These should be base names without the year.
@@ -415,24 +455,35 @@ class EuclideanDistance(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
     def transform(self, X):
-        for var, col in zip(self.variables, self.new_cols):
-            try:
+        if type(X) == pd.core.frame.DataFrame:
+            for var, col in zip(self.variables, self.new_cols):
+                try:
+                    #X.dropna(subset=var, inplace=True)
+                    var_list_year1 = []
+                    var_list_year2 = []
+                    for i in var:
+                        var_list_year1.append(f"{i}{self.years[0]}")
+                        var_list_year2.append(f"{i}{self.years[1]}")
+                    X[col] = np.linalg.norm(X[var_list_year1].values - X[var_list_year2].values, axis=1)
+                except:
+                    print("There was an error")
+                    #X.dropna(subset=var, inplace=True)
+                    var_list_year1 = []
+                    var_list_year2 = []
+                    for i in var:
+                        var_list_year1.append(f"{i}_{self.years[0]}")
+                        var_list_year2.append(f"{i}_{self.years[1]}")
+                    X[col] = np.linalg.norm(X[var_list_year1].values - X[var_list_year2].values, axis=1)
+        elif type(X) == dd.core.DataFrame:
+            for var, col in zip(self.variables, self.new_cols):
                 #X.dropna(subset=var, inplace=True)
                 var_list_year1 = []
                 var_list_year2 = []
                 for i in var:
                     var_list_year1.append(f"{i}{self.years[0]}")
                     var_list_year2.append(f"{i}{self.years[1]}")
-                X[col] = np.linalg.norm(X[var_list_year1].values - X[var_list_year2].values, axis=1)
-            except:
-                print("There was an error")
-                #X.dropna(subset=var, inplace=True)
-                var_list_year1 = []
-                var_list_year2 = []
-                for i in var:
-                    var_list_year1.append(f"{i}_{self.years[0]}")
-                    var_list_year2.append(f"{i}_{self.years[1]}")
-                X[col] = np.linalg.norm(X[var_list_year1].values - X[var_list_year2].values, axis=1)
+                #X = X.assign(**{col: dd.from_array(da.linalg.norm(X[var_list_year1].values - X[var_list_year2].values, axis=1), chunksize=100000)})
+                X = X.assign(**{col: lambda x: da.linalg.norm(x[var_list_year1].values - x[var_list_year2].values, axis=1)})
         return X
 
 class ColumnImputer(BaseEstimator, TransformerMixin):
@@ -452,10 +503,20 @@ class ColumnImputer(BaseEstimator, TransformerMixin):
     def transform(self, X):
         for c in self.cols:
             if c == "immigration":
-                X[X[f"{c}{self.years[0]}"].isnan()] = 0
-                X[X[f"{c}{self.years[1]}"].isnan()] = 0
-            X[X[f"{c}{self.years[0]}"].isnan()] = X[f"{c}{self.years[0]}"].median()
-            X[X[f"{c}{self.years[1]}"].isnan()] = X[f"{c}{self.years[1]}"].median()
+                X[f"{c}{self.years[0]}"] = X[f"{c}{self.years[0]}"].mask(X[f"{c}{self.years[0]}"].isnull(), 0)
+                X[f"{c}{self.years[1]}"] = X[f"{c}{self.years[1]}"].mask(X[f"{c}{self.years[1]}"].isnull(), 0)
+                """
+                X[X[f"{c}{self.years[0]}"].isna()] = 0
+                X[X[f"{c}{self.years[1]}"].isna()] = 0
+                """
+            median_year0 = np.median(X[f"{c}{self.years[0]}"].dropna()) #Removed compute
+            median_year1 = np.median(X[f"{c}{self.years[1]}"].dropna()) #Removed compute
+            X[f"{c}{self.years[0]}"] = X[f"{c}{self.years[0]}"].mask(X[f"{c}{self.years[0]}"].isnull(), median_year0)
+            X[f"{c}{self.years[1]}"] = X[f"{c}{self.years[1]}"].mask(X[f"{c}{self.years[1]}"].isnull(), median_year1)
+            """
+            X[X[f"{c}{self.years[0]}"].isna()] = np.median(X[f"{c}{self.years[0]}"])
+            X[X[f"{c}{self.years[1]}"].isna()] = np.median(X[f"{c}{self.years[1]}"])
+            """
         return X
 
 class CommonalityWeight(BaseEstimator, TransformerMixin):

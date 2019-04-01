@@ -6,7 +6,7 @@ import pandas as pd
 from itertools import chain
 
 
-def get_stata_dask_meta(file_name, meta_chunksize=10000, *args, **kwargs):
+def get_stata_dask_meta(file_name, meta_chunksize=25000, *args, **kwargs):
     """Load up first bit of the file for type metadata info. We have to resort
     to using iter() and chunksize trickery because the read_stata function
     doesn't have an "nrows" option."""
@@ -30,7 +30,7 @@ def dask_read_stata_delayed_simple(*args, **kwargs):
     return pd.read_stata(*args, **kwargs)
 
 
-def dask_read_stata_delayed_chunked(file_name, delayed_chunksize=1000000, *args, **kwargs):
+def dask_read_stata_delayed_chunked(file_name, delayed_chunksize=25000, *args, **kwargs):
     """Return a list of delayed objects, each of which will return a chunk of
     the given stata file."""
 
@@ -55,7 +55,7 @@ def dask_read_stata_delayed_chunked(file_name, delayed_chunksize=1000000, *args,
     return delayeds
 
 
-def dask_read_stata_delayed_group(file_names, meta=None, meta_chunksize=10000, *args, **kwargs):
+def dask_read_stata_delayed_group(file_names, meta=None, meta_chunksize=25000, *args, **kwargs):
 
     # Create delayed objects for every file
     delayeds = [dask_read_stata_delayed_chunked(f) for f in file_names]

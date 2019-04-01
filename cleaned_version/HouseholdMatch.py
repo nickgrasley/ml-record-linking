@@ -96,7 +96,7 @@ class HouseholdByAnchors():
             hhd1 = self.make_hhdict(self.df1[self.df1.household.isin(hhset1)])
             hhd2 = self.make_hhdict(self.df2[self.df2.household.isin(hhset2)])
             pairs = self.fish_for_pairs(hhd1,hhd2,hhp)
-            pairs.to_stata('{0}\\hh_pairs_{1}thr{2}.dta'.format(dest_folder,start,stop))
+            pairs.to_stata('{0}\\hh_pairs_{1R}thr{2}.dta'.format(dest_folder,start,stop))
         
 
 

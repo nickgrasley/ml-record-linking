@@ -22,7 +22,8 @@ cap ren y ismatch
 ren index1910 index
 merge m:1 index using data/census_compact/1910/census1910, keep(3) nogen
 ren (*) (*1910)
-ren (ark19101910 ark19201910 index19201910) (ark1910 ark1920 index1920)
+*ren (ark19101910 ark19201910 index19201910) (ark1910 ark1920 index1920)
+ren index19201910 index1920
 cap ren ismatch1910 ismatch
 
 ren index1920 index
@@ -61,7 +62,7 @@ compress
 ren index1910 index
 merge m:1 index using data/census_compact/1910/place1910, keep(3) nogen
 ren (index place) (index1910 event_place)
-merge m:1 event_place using data/crosswalks/event_lat_lon_1910, keep(1 3) keepus(lat lon) nogen //3,830
+merge m:1 event_place using data/crosswalks/census_towns_coor_v6.dta, keep(1 3) keepus(lat lon) nogen //3,830
 replace lat = 38.904722 if regexm(event_place, "Washington, District of Columbia, United States")
 replace lon = -77.016389 if regexm(event_place, "Washington, District of Columbia, United States")
 replace lat = 37.533333 if regexm(event_place, "Richmond (Independent City), Virginia, United States")
@@ -69,7 +70,7 @@ replace lon = -77.466667 if regexm(event_place, "Richmond (Independent City), Vi
 ren (lat lon) (event_lat1910 event_lon1910)
 ren (event_place index1920) (place1910 index)
 
-merge m:1 index using data/census_compact/1920/place1920, keep(3) nogen
+merge m:1 index using data/crosswalks/census_towns_coor_v6.dta, keep(3) nogen
 ren (index place) (index1920 event_place)
 merge m:1 event_place using data/crosswalks/event_lat_lon_1920, keep(1 3) keepus(lat lon) nogen //6,154
 replace lat = 38.904722 if regexm(event_place, "Washington, District of Columbia, United States")
