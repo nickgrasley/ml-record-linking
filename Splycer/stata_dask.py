@@ -54,7 +54,6 @@ def dask_read_stata_delayed_chunked(file_name, delayed_chunksize=25000, *args, *
 
     return delayeds
 
-
 def dask_read_stata_delayed_group(file_names, meta=None, meta_chunksize=25000, *args, **kwargs):
 
     # Create delayed objects for every file

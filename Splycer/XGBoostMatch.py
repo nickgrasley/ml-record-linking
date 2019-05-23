@@ -40,10 +40,10 @@ class XGBoostMatch(BaseEstimator, TransformerMixin):
         self.hyper_params = params
         
     def fit(self, data, Y):
-        X_train, X_test, Y_train, Y_test = train_test_split(data, Y, test_size=0.50, random_state=94)
+        X_train, X_test, Y_train, Y_test = train_test_split(data, Y, test_size=0.20, random_state=94)
         start = time()
         clf = XGBClassifier()
-        gs = GridSearchCV(clf, self.hyper_params, cv=5, n_jobs=4, scoring="f1_weighted")
+        gs = GridSearchCV(clf, self.hyper_params, cv=5, n_jobs=8, scoring="f1_weighted")
         gs.fit(X_train, Y_train)
         end = time()
         self.time_taken = end - start
@@ -56,8 +56,8 @@ class XGBoostMatch(BaseEstimator, TransformerMixin):
         return self
     
     def predict(self, data):
-        Y_pred = pd.DataFrame(self.model.predict(data), columns=["Y_pred"])
-        Y_pred_proba = pd.DataFrame(self.model.predict_proba(data)[:,1], columns=["Y_pred_proba"])
+        Y_pred = pd.Series(self.model.predict(data), name=["Y_pred"])
+        Y_pred_proba = pd.Series(self.model.predict_proba(data)[:,1], columns=["Y_pred_proba"])
         return pd.concat([Y_pred, Y_pred_proba], axis=1) #FIXME where do I add in arks?
     
     def transform(self, data):

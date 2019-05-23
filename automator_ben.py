@@ -5,10 +5,9 @@ Created on Wed Feb 20 16:35:37 2019
 @author: ngrasley
 """
 import sys
-sys.path.append("R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/preprocessing")
 import pandas as pd
-#import dask.dataframe as dd
-from candidate_creator import makePairs
+import dask.dataframe as dd
+from preprocessing.candidate_creator import makePairs
 from run_linking import run_linking
 
 def bins():
@@ -78,18 +77,18 @@ def bins():
              ['cohort2', 'female', 'first_sdxn', 'last_sdxn', 'mbp', 'race', 'state']]
 
 CEN_DIREC = "R:/JoePriceResearch/record_linking/data/census_compact"
-PAIR_FILE = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/data/pairs"
+PAIR_FILE = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/data/pairs_ben"
 MODEL_PKL = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/models/xgboost_more_features.p"
-CEN_OUT_FILE = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/data/temp_cen_out"
+CEN_OUT_FILE = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/data/temp_cen_out_ben.dta"
 def main(chunk_index):
-    census1 = pd.read_stata(f"{CEN_DIREC}/1900/census1900.dta")
-    census2 = pd.read_stata(f"{CEN_DIREC}/1920/census1920.dta", chunksize=50000)
-    census2._lines_read = chunk_index * 50000
+    census1 = pd.read_stata(f"{CEN_DIREC}/1910/census1910.dta")
+    census2 = pd.read_stata(f"{CEN_DIREC}/1920/census1920.dta", chunksize=100000)
+    census2._lines_read = chunk_index * 100000
     census2 = census2.get_chunk()
     binlists = bins()
-    makePairs(census1, census2, "1900", "1920", binlists).to_stata(f"{PAIR_FILE}_{chunk_index}.dta", write_index=False)
-    run_linking(False, MODEL_PKL, f"{PAIR_FILE}_{chunk_index}.dta", f"{CEN_OUT_FILE}{chunk_index}.dta", None, chunk_index)
+    makePairs(census1, census2, "1910", "1920", binlists).to_stata(f"{PAIR_FILE}_{chunk_index}.dta", write_index=False)
+    #run_linking("False", MODEL_PKL, f"{PAIR_FILE}_{chunk_index}.dta", CEN_OUT_FILE, None)
     return 0
 
 if __name__ == "__main__":
-    main(0)
+    main(1)

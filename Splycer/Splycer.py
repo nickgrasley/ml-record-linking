@@ -57,10 +57,12 @@ class Splycer():
         self.indices = ["index1910", "index1920"]
         outfile = f"{outfile}_{years[0]}_{years[1]}_{binner.chunk_num}.csv"
         self.outfile = outfile
+        """
         if type(candidate_pairs) == str:
             self.candidate_pairs = dask_read_stata_delayed_group([candidate_pairs])
             self.candidate_pairs = self.candidate_pairs.dropna(subset=self.indices)
             self.candidate_pairs = self.candidate_pairs.astype({"index1910": "int32", "index1920": "int32", "y": "int8"}).persist()
+        """
 
     """Remove the labels column from the rest of the data and assign to self.labels
        Parameters:

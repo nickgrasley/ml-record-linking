@@ -98,10 +98,6 @@ class CensusCompiler(BaseEstimator, TransformerMixin):
         census = census.set_index(f"index{year}", sorted=True)
         data = data.join(census, how="left")
         del census
-        try:
-            wait(data)
-        except:
-            pass
         return data
         
     def add_names(self, data, year):
@@ -124,7 +120,7 @@ class CensusCompiler(BaseEstimator, TransformerMixin):
         print(f"adding name commonality {year}")
         gn_name_comm = dask_read_stata_delayed_group([self.data_directory[f"gn_name_comm{year}"]])
         gn_name_comm.columns = [f"first{year}", f"first_name_comm{year}"]
-        gn_name_comm = gn_name_comm.set_index(f"first{year}").persist()
+        gn_name_comm = gn_name_comm.set_index(f"first{year}")
         surn_name_comm = dask_read_stata_delayed_group([self.data_directory[f"surn_name_comm{year}"]])
         surn_name_comm.columns = [f"last{year}", f"last_name_comm{year}"]
         data = data.join(gn_name_comm, how="left")
@@ -153,7 +149,7 @@ class CensusCompiler(BaseEstimator, TransformerMixin):
         place_names_df.columns = [f"index{year}", f"event_place{year}"]
         event_geo_coord_df.columns = [f"event_place{year}", f"lat{year}", f"lon{year}"]
         data = dd.merge(data, place_names_df, how="left", on=f"index{year}")
-        data = dd.merge(data, event_geo_coord_df, how="left", on=f"event_place{year}").persist()
+        data = dd.merge(data, event_geo_coord_df, how="left", on=f"event_place{year}")
         del place_names_df, event_geo_coord_df
         
         dc = "Washington, District of Columbia, United States"
@@ -185,7 +181,7 @@ class CensusCompiler(BaseEstimator, TransformerMixin):
         county_lat_lon_all = dask_read_stata_delayed_group([self.data_directory["county_lat_lon_all"]])
         county_lat_lon_all = county_lat_lon_all.drop_duplicates(subset=["county", "state"])
         print(data.info())
-        tmp = dd.merge(data, county_lat_lon_all, how="left", left_on=[f"county_string{year}", f"state_string{year}"], right_on=["county", "state"]).persist() #Removed compute
+        tmp = dd.merge(data, county_lat_lon_all, how="left", left_on=[f"county_string{year}", f"state_string{year}"], right_on=["county", "state"]) #Removed compute
         
         data[f"lat{year}"] = data[f"lat{year}"].mask(data[f"lat{year}"].isnull(), tmp.lat)
         data[f"lon{year}"] = data[f"lon{year}"].mask(data[f"lon{year}"].isnull(), tmp.lon)
@@ -223,6 +219,9 @@ class CensusCompiler(BaseEstimator, TransformerMixin):
         #FIXME there's some functions that must run before others. Ensure that those occur if the later functions are called.
         for y in self.years:
             for func in self.chosen_variables:
-                X = func(X, y)
+                try:
+                    X = func(X, y)
+                except:
+                    X = func(X, y)
         #FIXME find out best way to drop variables that shouldn't be included.
         return X.persist()

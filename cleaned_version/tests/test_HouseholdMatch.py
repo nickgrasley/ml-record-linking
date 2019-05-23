@@ -11,6 +11,8 @@ import os
 import pandas as pd
 import numpy as np
 
+
+
 def test_init(obj, *args):
     
     assert obj.df1.equals(args[0]), 'census frame 1 not properly assigned'

@@ -143,7 +143,7 @@ class Binner(BaseEstimator, TransformerMixin):
             b.sort()
             list_tracker = []
             if b not in list_tracker:
-                new = dd.merge(self.census1, self.census2, on=b, how='inner')[['index'+self.year[0], 'index'+self.year[1]]]
+                new = dd.merge(self.census1, self.census2, on=b, how='inner')[['index'+self.years[0], 'index'+self.years[1]]]
                 #outpairs = outpairs.append(new).drop_duplicates()
                 chunky_bins.append(new)
                 list_tracker.append(b)

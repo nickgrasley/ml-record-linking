@@ -11,6 +11,9 @@ Notes:
 21 
 """
 
+import sys
+sys.path.append("R:\JoePriceResearch\record_linking\projects\deep_learning\ml-record-linking\Splycer")
+
 # importing the functions to be tested
 from Splycer.Binner import bins
 from Splycer.Binner import Binner

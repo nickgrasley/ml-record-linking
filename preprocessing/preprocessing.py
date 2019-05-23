@@ -163,8 +163,8 @@ class PhoneticCode(BaseEstimator, TransformerMixin):
         if type(X) == pd.core.frame.DataFrame:
             for col in self.string_col:
                 if self.years is not None:
-                    X[f"{col}_{self.encoding_name}{self.years[0]}"] = self.encoding(X[f"{col}{self.years[0]}"])[0]
-                    X[f"{col}_{self.encoding_name}{self.years[1]}"] = self.encoding(X[f"{col}{self.years[1]}"])[0]
+                    X[f"{col}_{self.encoding_name}{self.years[0]}"] = self.encoding(X[f"{col}{self.years[0]}"].astype(str))[0]
+                    X[f"{col}_{self.encoding_name}{self.years[1]}"] = self.encoding(X[f"{col}{self.years[1]}"].astype(str))[0]
                 else:
                     X[f"{col}_{self.encoding_name}"] = self.encoding(X[col])[0]
         return X
@@ -242,7 +242,7 @@ class Bigram(BaseEstimator, TransformerMixin):
         return self
     def transform(self, X):
         for col in self.string_col:
-            X[f"{col}_ngram"] = self.ngram(X[f"{col}{self.years[0]}"], X[f"{col}{self.years[1]}"])
+            X[f"{col}_ngram"] = self.ngram(X[f"{col}{self.years[0]}"].astype(str), X[f"{col}{self.years[1]}"].astype(str))
         return X
 
 class DropVars(BaseEstimator, TransformerMixin): #works
@@ -454,8 +454,8 @@ class ColumnImputer(BaseEstimator, TransformerMixin):
             if c == "immigration":
                 X[X[f"{c}{self.years[0]}"].isnan()] = 0
                 X[X[f"{c}{self.years[1]}"].isnan()] = 0
-            X[X[f"{c}{self.years[0]}"].isnan()] = X[f"{c}{self.years[0]}"].median()
-            X[X[f"{c}{self.years[1]}"].isnan()] = X[f"{c}{self.years[1]}"].median()
+            X[X[f"{c}{self.years[0]}"].isnull()] = X[f"{c}{self.years[0]}"].median()
+            X[X[f"{c}{self.years[1]}"].isnull()] = X[f"{c}{self.years[1]}"].median()
         return X
 
 class CommonalityWeight(BaseEstimator, TransformerMixin):

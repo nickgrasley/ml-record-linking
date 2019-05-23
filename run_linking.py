@@ -10,10 +10,11 @@ whether you want to train or whether you want to predict.
 import sys
 import pickle as pkl
 from sklearn.metrics import confusion_matrix
-import preprocessing.train_predict, preprocessing.create_predictions_file
+import train_predict
+import create_predictions_file
 from subprocess import call
 
-def run_linking(is_train, model_pickle_file, candidate_pairs_file, census_out_file, features):
+def run_linking(is_train, model_pickle_file, candidate_pairs_file, census_out_file, features, chunk_index):
     """Run the linking process from start to finish
     Parameters:
         is_train (bool): whether you want to train or predict
@@ -27,7 +28,7 @@ def run_linking(is_train, model_pickle_file, candidate_pairs_file, census_out_fi
         if training:
             model with precision and recall of test sets
     """
-    merge_file = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/preprocessing/merge_datasets.do"
+    merge_file = "R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/preprocessing/merge_datasets_1900_1920.do"
     if is_train:
         call(["C:/Program Files (x86)/Stata15/StataSE-64.exe", "do", merge_file, candidate_pairs_file, census_out_file])
         model, X_test, Y_test, X, total_time = train_predict.train(census_out_file)
@@ -39,9 +40,9 @@ def run_linking(is_train, model_pickle_file, candidate_pairs_file, census_out_fi
     else:
         call(["C:/Program Files (x86)/Stata15/StataSE-64.exe", "do", merge_file, candidate_pairs_file, census_out_file, "False"])
         #load data
-        preds = train_predict.predict(census_out_file, model_pickle_file, ["1910", "1920"]) #FIXME make years a function parameter
+        preds = train_predict.predict(census_out_file, model_pickle_file, ["1900", "1920"]) #FIXME make years a function parameter
         #run train_predict.py
-        create_predictions_file.create_prediction_file(preds, "predictions.csv")
+        create_predictions_file.create_prediction_file(preds, "predictions.csv", chunk_index)
         #run create_predictions_file.py
         return None, None, None
 
