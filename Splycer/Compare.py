@@ -5,6 +5,8 @@ Created on Mon Jul 15 13:19:28 2019
 @author: ngrasley
 """
 
+#FIXME implement arbitrary numerical indices
+
 import numpy as np
 
 from numba import jitclass
@@ -21,13 +23,25 @@ class Record(object):
 
 csr_spec = [("rows", uint32[:]), ("columns", uint32[:]), ("values", uint8[:])]
 @jitclass(csr_spec)
-class csr_matrix(object):
-    def __init__(self, uids1, uids2, data):
-        self.rows = np.bincounts(uids1)
-        self.columns = uids2
-        self.values = data
+class csr_matrix(object): #FIXME add implementation
+    def __init__(self, indptr, indices, data):
+        self.indptr = indptr
+        self.indices = indices
+        self.data = data
+        
+    @classmethod
+    def fromCOO(self, rows, columns, data):
+        #FIXME write conversion from COO format
+    def __iter__(self):
+        indptr = np.zeros(2, dtype=self.indptr.dtype)
+        shape = (, self.shape[1])
+        i0 = 0
+        for i1 in self.indptr[1:]:
+            for i in range(i0: (i1+1)):
+                
+            
 
-compare_spec = [("record1", uint8), ("record2", uint8), ("matrix", csr_matrix.class_type.instance_type)]
+compare_spec = [("record1", uint8), ("record2", uint8), ("matrix", csr_matrix.class_type.instance_type)] #TODO make matrix category more flexible
 @jitclass(compare_spec)
 class Compares(object):
     """Create a sparse matrix of the comparison pairs of records. data contains
@@ -43,4 +57,4 @@ class Compares(object):
     def __init__(self, record1, record2, uids1, uids2, data):
         self.record1 = record1
         self.record2 = record2
-        self.matrix = csr_matrix((data, uids1, uids2))
+        self.matrix = csr_matrix(uids1, uids2, data)
