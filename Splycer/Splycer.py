@@ -4,14 +4,14 @@ Created on Mon Mar  4 16:22:08 2019
 
 @author: ngrasley
 """
+import sys
+import os
+import warnings
 import pandas as pd
-import dask.dataframe as dd
-from stata_dask import dask_read_stata_delayed_group
 
 import pickle as pkl
+import json
 
-from Binner import Binner
-from CensusCompiler   import CensusCompiler
 from FeatureEngineer  import FeatureEngineer
 from XGBoostMatch import XGBoostMatch
 from sklearn.pipeline import Pipeline
@@ -38,31 +38,16 @@ class Splycer():
                    Created using get_labels() and not necessary for prediction
            model: The model used to train. I need to create a function that loads in the model
     """
-    def __init__(self, binner=Binner(), census_compiler=CensusCompiler(),
-                 feature_engineer=FeatureEngineer(), xgboost = XGBoostMatch(),
+    def __init__(self, blocking_sql_file="", feature_engineer=FeatureEngineer(), xgboost = XGBoostMatch(),
                  candidate_pairs="R:/JoePriceResearch/record_linking/data/census_tree/training_data/training.dta",
                  years=["1910", "1920"], outfile="R:/JoePriceResearch/record_linking/deep_learning/data/predictions/xgboost"):
-        '''The 4 classes'''
-        self.binner = binner
-        self.census_compiler = census_compiler
-        self.feature_engineer = feature_engineer
-        self.xgboost = xgboost
-        
         self.years = years
         self.candidate_pairs = candidate_pairs
-        self.model = None
         self.labels = None
         self.arks = None
         self.pipe = []
         self.indices = ["index1910", "index1920"]
-        outfile = f"{outfile}_{years[0]}_{years[1]}_{binner.chunk_num}.csv"
         self.outfile = outfile
-        """
-        if type(candidate_pairs) == str:
-            self.candidate_pairs = dask_read_stata_delayed_group([candidate_pairs])
-            self.candidate_pairs = self.candidate_pairs.dropna(subset=self.indices)
-            self.candidate_pairs = self.candidate_pairs.astype({"index1910": "int32", "index1920": "int32", "y": "int8"}).persist()
-        """
 
     """Remove the labels column from the rest of the data and assign to self.labels
        Parameters:
@@ -70,42 +55,18 @@ class Splycer():
     """
     def get_labels(self, label_col):
         self.labels = self.candidate_pairs[label_col]
-        self.candidate_pairs = self.candidate_pairs.drop(label_col, axis=1).persist() #FIXME drop w/o making pandas df
+        self.candidate_pairs = self.candidate_pairs.drop(label_col, axis=1)
     
     """Run this after feature engineering to get the arks."""
     def get_arks(self, has_compact_indices=True):
         if has_compact_indices:
             ark_cols = [f"ark{self.years[0]}", f"ark{self.years[1]}", f"index{self.years[0]}", f"index{self.years[1]}"]
             self.arks = self.candidate_pairs[ark_cols]
-            self.candidate_pairs = self.candidate_pairs.drop(ark_cols, axis=1).persist()
+            self.candidate_pairs = self.candidate_pairs.drop(ark_cols, axis=1)
         else:
             ark_cols = [f"ark{self.years[0]}", f"ark{self.years[1]}"]
             self.arks = self.candidate_pairs[ark_cols]
-            self.candidate_pairs = self.candidate_pairs.drop(ark_cols, axis=1).persist()
-   
-    """Load in the pickled model from the given directory
-       Parameters:
-           model_file (string): the path to the model that you want to load
-    """
-    def get_model(self, model_file):
-        with open(model_file, "rb") as file:
-            self.model = pkl.load(file)
-
-    """Create candidate pairs using the bins of the binner object."""
-    def create_pairs(self):
-        self.candidate_pairs = self.binner.makePairs()
-    
-    """Merge all of the data from census and other sources onto the candidate pairs"""
-    def add_census_data(self):
-        self.candidate_pairs = self.census_compiler.compile_census(self.candidate_pairs)
-        
-    """From the census data, generate the desired features listed in the feature engineer object"""
-    def create_features(self):
-        self.candidate_pairs = self.feature_engineer.transform(self.candidate_pairs)
-        
-    def train(self):
-        """DEPRECATED"""
-        self.model = self.xgboost.fit(self.candidate_pairs, self.labels).model
+            self.candidate_pairs = self.candidate_pairs.drop(ark_cols, axis=1)
         
     def predict(self):
         preds = self.xgboost.predict(self.candidate_pairs)
@@ -131,8 +92,16 @@ class Splycer():
     def set_pipeline(self):
         self.pipe = Pipeline(self.pipe)
         
-    def save(self, filepath, with_candidate_pairs=False):
-        if with_candidate_pairs:
-            self.candidate_pairs.to_parquet(f"{filepath}.parquet")
-        with open(f"{filepath}.splycer", "wb") as file:
-            pkl.dump(file, self)
+    def save(self, file_path, folder_name, training_data=False):
+        os.mkdir(folder_name)
+        path = f"{file_path}/{folder_name}"
+        if training_data:
+            self.candidate_pairs.to_csv(f"{path}/candidate_pairs.csv", index=False)
+            self.labels.to_csv(f"{path}/labels.csv", index=False)
+            self.arks.to_csv(f"{path}/arks.csv", index=False)
+            
+    def load(self, file_path, training_data=False):
+        if training_data:
+            self.candidate_pairs = pd.read_csv(f"{file_path}/candidate_pairs.csv")
+            self.labels = pd.read_csv(f"{file_path}/labels.csv")
+            self.arks = pd.read_csv(f"{file_path}/arks.csv")

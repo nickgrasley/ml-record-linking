@@ -1,7 +1,0 @@
-Overview: We want to run training and predictions from start to finish given a file with ark pairs. The output will be a file with columns pid, ark1, ark2, is_match
-
-1. Create shell/Python file that will run all the scripts. (e.g. from subprocess import call; call["C:\...\Stata.exe", stata_file, args]
-	- Scripts are R:\JoePriceResearch\record_linking\projects\deep_learning\ml-record-linking\preprocessing\merge_datasets.do (needs arguments for variable ark pairs file)
-				  R:\JoePriceResearch\record_linking\projects\deep_learning\ml-record-linking\preprocessing\preprocess_pipeline_example.py
-				  Some file to create predictions table (pid, ark1, ark2, is_match)
-					You get the pids from R:\JoePriceResearch\record_linking\data\census_tree\pid_ark.dta (This has duplicates, so sort by attached and drop the unattached and keep only the first)

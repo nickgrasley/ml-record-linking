@@ -3,7 +3,9 @@ data/
 *.pyc
 *.dta
 *.csv
-*.sql
+*.itml
+*.feather
+*.bin
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -35,6 +35,7 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
                                "imputer": ColumnImputer(cols=[]),
                                "commonality weight": CommonalityWeight(cols=[], comm_cols=[])} #FIXME add the other preprocessing functors
         self.features = []
+        self.raw_feature_attributes = {}
         
     def add_feature(self, feature_name, param_dict):
         feat = self.features_avail[feature_name]
@@ -42,6 +43,7 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         count = 0
         while f"{feature_name}_{count}" in dict(self.features):
             count += 1
+        self.raw_feature_attributes[f"{feature_name}_{count}"] = param_dict
         self.features.append((f"{feature_name}_{count}", feat)) #FIXME can this take same feature names, or do I have to check for that?
         
      
@@ -52,3 +54,13 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         pipe = Pipeline(self.features)
         data = pipe.fit_transform(data)
         return data
+    
+    def save(self, path):
+        with open(path, "w") as file:
+            for feat in self.raw_feature_attributes:
+                file.write(feat + "|" + self.raw_feature_attributes[feat])
+                
+    def load(self, path):
+        with open(path, "r") as file:
+            for line in file.readlines():
+                self.add_feature(line.split("|"))

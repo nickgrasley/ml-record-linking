@@ -269,6 +269,20 @@ class Bigram(BaseEstimator, TransformerMixin):
             X = X.assign(**{new_col: lambda x: self.ngram(x[col0], x[col1])})
         return X
 
+class FixNicknames(BaseEstimator, TransformerMixin):
+    """Changes nicknames to their full name if you have merged the nickname crosswalk
+    """
+    def __init__(self, raw_name_col=["pr_name_gn"], fixed_name_col=["full_name"], years=["1910", "1920"]):
+        self.raw = raw_name_col
+        self.fixed = fixed_name_col
+        self.years = years
+    def fit(self, X):
+        return self
+    def transform(self, X):
+        for year in self.years:
+            X.loc[~X[f"{self.fixed}_{year}"].isnull(), f"first_{year}"] = X.loc[~X[f"{self.fixed}_{year}"].isnull(), f"{self.fixed}_{year}"]
+        return X
+
 class DropVars(BaseEstimator, TransformerMixin): #works
     """Takes a dataFrame and returns a dataframe with the columns deleted that you wanted to drop
     Parameters:
