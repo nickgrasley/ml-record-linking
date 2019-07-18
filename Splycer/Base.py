@@ -35,9 +35,9 @@ class RecordDict(dict, RecordBase):
        at a constant rate with the number of records, this object is most
        efficient when you merely have to grab record information.
     """
-    def __init__(self,record_id, uid, features):
+    def __init__(self,record_id, uids, features):
         self.record_id = record_id
-        super().__init__(zip(uid, features))
+        super().__init__(zip(uids, features))
     def get_record(self, uid):
         self.get(uid)
         
