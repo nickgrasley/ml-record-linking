@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jul 18 11:22:25 2019
+
+@author: thegrasley
+"""
+
 # -*- coding: utf-8 -*-
 """
 Created on Mon Mar  4 16:55:12 2019
@@ -9,63 +17,77 @@ import pickle as pkl
 import os
 import json
 import numpy as np
-import pandas as pd
-from xgboost import XGBClassifier
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, precision_score, recall_score
-from sklearn.base import BaseEstimator, TransformerMixin
 from time import time
+from Linker import Linker
 
-class XGBoostMatch(BaseEstimator, TransformerMixin):
+class XGBoostMatch(Linker):
     """This class either trains a new model given the data or generates predictions
-       using a previously trained model. Make sure to use set_hyper_params() if
-       you are training a new model.
+       using a previously trained model.
     """
-    def __init__(self, model_file="R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/model.xgboost"):
-        self.model = None
-        if model_file is not None:
-            with open(model_file, "rb") as file:
-                self.model = pkl.load(file)
-        self.time_taken     = -1
-        self.confusion_mat = np.array(0)
-        self.test_precision = -1
-        self.test_recall    = -1
-        self.hyper_params = {}
-        
-    """Set the hyper_params
-       Parameters:
-           params (dict): keys are the parameter names for an xgboost model while
-               values are either singular values or a list of values. A list of
-               values will perform a grid search to choose the optimal hyper parameter.
-    """
-    def set_hyper_params(self, params):
-        self.hyper_params = params
-        
-    def fit(self, data, Y, test_size=0.20, random_state=94, cv=5, n_jobs=8):
-        X_train, X_test, Y_train, Y_test = train_test_split(data, Y, test_size=test_size, random_state=random_state)
+    def __init__(self, recordset1, recordset2, compareset, comp_eng, model):
+        super().__init__(recordset1, recordset2, compareset)
+        self.comp_eng = comp_eng
+        self.model = model
+    
+    def create_training_set(self):
+        """Used in the train function. Generate comparison vectors."""
+        comp_array = np.zeros((self.compareset.shape[0], self.comp_eng.shape[0]), dtype=np.float32) #FIXME add shape features
+        labels = np.zeros(self.compareset.shape[0], dtype=np.uint8)
+        i = 0
+        for uid1, uid2, label in self.compareset:
+            labels[i] = label
+            comp_array[i] = self.comp_eng.compare(self.recordset1.get_record(uid1), 
+                                                  self.recordset2.get_record(uid2)) #FIXME implement to_array(float32) in FeatureEngineer
+        return comp_array, labels
+    def train(self, test_size=0.2, random_state=94):
+        """Train the xgboost model. This is agnostic to a grid search, but you
+        have to set up the grid search in your own script.
+        """
+        print("creating training set...")
+        X, y = self.create_training_set()
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+        print("fitting model...")
         start = time()
-        clf = XGBClassifier()
-        gs = GridSearchCV(clf, self.hyper_params, cv=cv, n_jobs=n_jobs, scoring="f1_weighted")
-        gs.fit(X_train, Y_train)
+        self.model.fit(X, y)
         end = time()
-        self.time_taken = end - start
-        Y_pred = gs.predict(X_test)
-        self.confusion_mat = confusion_matrix(Y_test, Y_pred)
-        self.test_precision = precision_score(Y_test, Y_pred)
-        self.test_recall = recall_score(Y_test, Y_pred)
-        gs.best_estimator_.get_booster().feature_names = data.columns
-        self.model = gs
-        return self
+        y_pred = self.model.predict(X_test)
+        self.confusion_mat = confusion_matrix(y_test, y_pred)
+        self.test_precision = precision_score(y_test, y_pred)
+        self.test_recall = recall_score(y_test, y_pred)
+        print(f"number of training obs: {X.shape[0]}, training time: {end - start},\n\
+                precision: {self.test_precision}, recall: {self.test_recall}")
+        
+    def is_link(self, candidate_pair):
+        """Use the model's builtin cutoff to say whether a comparison pair is a link. This
+           does not account for duplicates since it only predicts one pair at a time.
+        """
+        rec1 = self.recordset1.get_record(candidate_pair[0])
+        rec2 = self.recordset2.get_record(candidate_pair[1])
+        comp_vec = self.comp_eng.compare(rec1, rec2)
+        return self.model.predict(comp_vec)
     
-    def predict(self, data, drop_duplicates=False):
-        Y_pred = pd.Series(self.model.predict(data), name=["Y_pred"])
-        Y_pred_proba = pd.Series(self.model.predict_proba(data)[:,1], columns=["Y_pred_proba"])
-        return pd.concat([Y_pred, Y_pred_proba], axis=1) #FIXME where do I add in arks?
+    def link_proba(self, candidate_pair):
+        """Generate probability prediction for a comparison pair."""
+        rec1 = self.recordset1.get_record(candidate_pair[0])
+        rec2 = self.recordset2.get_record(candidate_pair[1])
+        comp_vec = self.comp_eng.compare(rec1, rec2)
+        return self.model.predict_proba(comp_vec)[0][0] #FIXME check that this is the correct probability
     
-    def transform(self, data):
-        return self.predict(data)
-    
-    def save(self, path):
+    def run(self, outfile):
+        """Run the model on the full compare set, writing results to file."""
+        outfile = open(outfile, "w")
+        for candidate_pair in self.compareset.get_pairs():
+            match_proba = self.link_proba(candidate_pair)
+            if self.above_thresh(match_proba):
+                outfile.write(f"{candidate_pair[0]},{candidate_pair[1]},{match_proba}")
+        #FIXME should I implement remove_duplicates in run itself?
+            
+    def remove_duplicates(self):
+        raise NotImplementedError()
+        
+    def save(self, path): #FIXME this isn't all that I want to save
         if not os.path.isdir(path):
             os.mkdir(path)
         with open(f"{path}/model.xgboost", "w") as file:
@@ -75,7 +97,7 @@ class XGBoostMatch(BaseEstimator, TransformerMixin):
                            'precision': {self.test_precision}, 'recall': {self.test_recall},\
                            'hyper_params': {self.hyper_params}\}")
                   
-    def load(self, path):
+    def load(self, path): #FIXME this isn't all that I want to save
         with open(f"{path}/model.xgboost", "r") as file:
             self.model = pkl.load(file)
         with open(f"{path}/model_features.json", "r") as file:
