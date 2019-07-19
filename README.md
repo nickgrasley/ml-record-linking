@@ -18,6 +18,11 @@ for each record. This allows the Splycer package to be agnostic to how the recor
 data is stored for a user. I have defined a couple common record sets as examples.
 (note: the abc package used here allows Python to define abstract classes.)
 
+The first example is RecordDict. This implements a record set as a dictionary.
+A dictionary is great if you only have to look up uids because its inner structure
+is built for extremely fast lookup. RecordDB will be coded up for working on sql
+servers. RecordDataFrame will be coded up for working with DataFrames.
+
 CompareBase is the interface that defines how record sets are compared. Since
 comparing a record in record set 1 to every record in record set 2 is often
 computationally infeasible, CompareBase defines a container for record pairs
