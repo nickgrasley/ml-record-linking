@@ -39,7 +39,7 @@ class RecordDict(dict, RecordBase):
         self.record_id = record_id
         super().__init__(zip(uids, features))
     def get_record(self, uid):
-        self.get(uid)
+        return self.get(uid)
         
 class RecordDB(RecordBase): #FIXME implement this
     """Records are stored in a sql database. If you need to do any blocking,
