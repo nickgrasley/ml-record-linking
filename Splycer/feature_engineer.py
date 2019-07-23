@@ -1,16 +1,25 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Mon Mar  4 16:54:36 2019
 
 @author: ngrasley
 """
-from sklearn.base import BaseEstimator, TransformerMixin
+import pandas as pd
 from sklearn.pipeline import Pipeline
-import sys
-sys.path.append("R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/preprocessing")
-from preprocessing import EuclideanDistance, PhoneticCode, StringDistance, Bigram, DropVars, BooleanMatch, FuzzyBoolean, ColumnImputer, CommonalityWeight
+from Splycer.preprocessing import EuclideanDistance, PhoneticCode,\
+                                  StringDistance, Bigram, DropVars,\
+                                  BooleanMatch, FuzzyBoolean,\
+                                  ColumnImputer, CommonalityWeight
+from Splycer.base import FeatureBase
 
-class FeatureEngineer(BaseEstimator, TransformerMixin):
+"""TODO the whole pipeline should be redesigned. First, pandas dataframes should
+be scrapped for some numpy array representation. Second, the comparison vector
+should be separate from the records info so that record columns don't accidentally
+end up in the comparison vector. This is also slower since the two record vectors
+have to be wrangled into one dataframe with different names for each record vector.
+"""
+class FeatureEngineer(FeatureBase):
     """This class generates features from the merged census data. Implemented
        features are listed in self.features_avail. The values in self.features_avail
        are functors in preprocessing.py. Look there for the needed parameters
@@ -36,7 +45,8 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
                                "commonality weight": CommonalityWeight(cols=[], comm_cols=[])} #FIXME add the other preprocessing functors
         self.features = []
         self.raw_feature_attributes = {}
-        
+        self.pipeline = None
+
     def add_feature(self, feature_name, param_dict):
         feat = self.features_avail[feature_name]
         feat.__init__(**param_dict)
@@ -45,22 +55,24 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
             count += 1
         self.raw_feature_attributes[f"{feature_name}_{count}"] = param_dict
         self.features.append((f"{feature_name}_{count}", feat)) #FIXME can this take same feature names, or do I have to check for that?
-        
-     
-    def fit(self, X, y=None):
-        return self
-    
-    def transform(self, data):
-        pipe = Pipeline(self.features)
-        data = pipe.fit_transform(data)
-        return data
-    
+
+    def build(self):
+        """Build the pipeline"""
+        self.pipeline = Pipeline(self.features)
+
+    def compare(self, rec1, rec2):
+        rec1.columns = [f"{i}_1" for i in rec1.columns]
+        rec2.columns = [f"{i}_2" for i in rec2.columns]
+        X = pd.concat([rec1, rec2], axis=1)
+        return self.pipeline.transform(X)
+
+
     def save(self, path):
         with open(path, "w") as file:
             for feat in self.raw_feature_attributes:
                 file.write(feat + "|" + self.raw_feature_attributes[feat])
-                
+
     def load(self, path):
         with open(path, "r") as file:
             for line in file.readlines():
-                self.add_feature(line.split("|"))
+                self.add_feature(line.split("|")) #FIXME

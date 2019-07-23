@@ -6,13 +6,6 @@ Created on Thu Jul 18 11:22:25 2019
 @author: thegrasley
 """
 
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Mar  4 16:55:12 2019
-
-@author: ngrasley
-"""
-
 import pickle as pkl
 import os
 import json
@@ -20,9 +13,9 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, precision_score, recall_score
 from time import time
-from Linker import Linker
+from Splycer.base import LinkerBase
 
-class XGBoostMatch(Linker):
+class XGBoostMatch(LinkerBase):
     """This class either trains a new model given the data or generates predictions
        using a previously trained model.
     """
@@ -30,10 +23,10 @@ class XGBoostMatch(Linker):
         super().__init__(recordset1, recordset2, compareset)
         self.comp_eng = comp_eng
         self.model = model
-    
+
     def create_training_set(self):
         """Used in the train function. Generate comparison vectors."""
-        comp_array = np.zeros((self.compareset.shape[0], self.comp_eng.shape[0]), dtype=np.float32) #FIXME add shape features
+        comp_array = np.zeros((self.compareset.ncompares, self.comp_eng.nfeats), dtype=np.float32) #FIXME add shape features
         labels = np.zeros(self.compareset.shape[0], dtype=np.uint8)
         i = 0
         for uid1, uid2, label in self.compareset:
@@ -97,7 +90,7 @@ class XGBoostMatch(Linker):
                            'precision': {self.test_precision}, 'recall': {self.test_recall},\
                            'hyper_params': {self.hyper_params}\}")
                   
-    def load(self, path): #FIXME this isn't all that I want to save
+    def load(self, path): #FIXME this isn't all that I want to load
         with open(f"{path}/model.xgboost", "r") as file:
             self.model = pkl.load(file)
         with open(f"{path}/model_features.json", "r") as file:
