@@ -62,9 +62,12 @@ class RecordDataFrame(RecordBase):
        want to set up a sql server. However, it has slow lookup, slow merges, and
        is a memory hog, so don't use this for large datasets.
     """
-    def __init__(self, record_id, records, uid_col):
+    def __init__(self, record_id, records, uid_col=None):
         self.record_id = record_id
-        self.df = pd.DataFrame(records, index=uid_col)
+        if type(records) == pd.core.frame.DataFrame:
+            self.df = records
+        else:
+            self.df = pd.DataFrame(records, index=uid_col)
     def __getitem__(self, uid):
         return self.df.loc[uid, :]
     def get_record(self, uid, var_list=None):
