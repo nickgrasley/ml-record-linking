@@ -48,7 +48,6 @@ class FeatureEngineer(FeatureBase):
         if extra_args is None:
             extra_args = ({} for i in range(len(compare_type)))
         self.raw_features[record_col] = [compare_type, tuple(extra_args)]
-        print(extra_args)
         self.rec_columns.add(record_col)
         self.ncompares += 1
         comp_func = copy.deepcopy(self.features_avail[compare_type])
@@ -66,7 +65,6 @@ class FeatureEngineer(FeatureBase):
         self.ncompares -= 1
         
     def check_pipeline(self, example_rec):
-        """Build the pipeline"""
         unused_cols = set(example_rec.dtype.names).difference(self.rec_columns)
         if len(unused_cols) > 0:
             warnings.warn(f"The column(s) {unused_cols} do(es) not have a \

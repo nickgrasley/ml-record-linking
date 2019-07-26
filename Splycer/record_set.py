@@ -21,9 +21,9 @@ class RecordDict(dict, RecordBase):
         super().__init__(zip(uids, features))
     def get_record(self, uid, var_list=None):
         if var_list is None:
-            return pd.DataFrame().from_records(self.get(uid))
+            return self.get(uid)
         else:
-            return pd.DataFrame().from_records(self.get(uid)[var_list])
+            return self.get(uid)[var_list]
 
 class RecordDB(RecordBase):
     """Records are stored in a sql database. If you need to do any blocking,
@@ -50,10 +50,10 @@ class RecordDB(RecordBase):
     def get_record(self, uid, var_list=None):
         if var_list is None:
             data = pd.from_sql(self.conn, f"select * from {self.table_name}\
-                                            where {self.idx_name} = {uid}")
+                                            where {self.idx_name} = {uid}") #FIXME data format needs to be record array
         else:
             data = pd.from_sql(self.conn, f"select {var_list} from {self.table_name}\
-                                            where {self.idx_name} = {uid}")
+                                            where {self.idx_name} = {uid}") #FIXME data format needs to be record array
         return data
 
 class RecordDataFrame(RecordBase):
@@ -69,9 +69,9 @@ class RecordDataFrame(RecordBase):
         else:
             self.df = pd.DataFrame(records, index=uid_col)
     def __getitem__(self, uid):
-        return self.df.loc[uid, :]
+        return self.df.loc[uid, :] #FIXME data format needs to be record array
     def get_record(self, uid, var_list=None):
         if var_list is None:
-            return self.df.loc[[uid], :]
-        return self.df.loc[[uid], var_list]
+            return self.df.loc[[uid], :] #FIXME data format needs to be record array
+        return self.df.loc[[uid], var_list] #FIXME data format needs to be record array
 
