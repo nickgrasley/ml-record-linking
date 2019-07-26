@@ -21,7 +21,7 @@ class RecordBase(metaclass=abc.ABCMeta):
     def __getitem__(self, uid):
         pass
 
-class CompareBase(metaclass=abc.ABCMeta):
+class PairsBase(metaclass=abc.ABCMeta):
     """Abstract container for the comparisons between two record
        sets.
     """
@@ -36,6 +36,13 @@ class CompareBase(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def get_pairs(self):
         """Query all record pairs and create a generator object."""
+
+class CompareBase(metaclass=abc.ABCMeta):
+    def __init__(self, col):
+        self.col = col
+    @abc.abstractmethod
+    def transform(self):
+        """Perform the comparison operation"""
 
 class FeatureBase(metaclass=abc.ABCMeta):
     """Abstract class that handles how records are compared."""

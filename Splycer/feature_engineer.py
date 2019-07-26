@@ -5,13 +5,15 @@ Created on Mon Mar  4 16:54:36 2019
 
 @author: ngrasley
 """
-import pandas as pd
-from sklearn.pipeline import Pipeline
-from Splycer.preprocessing import EuclideanDistance, PhoneticCode,\
-                                  StringDistance, Bigram, DropVars,\
-                                  BooleanMatch, FuzzyBoolean,\
-                                  ColumnImputer, CommonalityWeight
-from Splycer.base import FeatureBase
+import warnings
+import copy
+import json
+from collections import OrderedDict
+from ast import literal_eval
+import numpy as np
+from base import FeatureBase
+from comparisons import JW, EuclideanDistance, GeoDistance, BiGram, TriGram, NGram,\
+                        BooleanMatch,CommonalityWeight
 
 """TODO the whole pipeline should be redesigned. First, pandas dataframes should
 be scrapped for some numpy array representation. Second, the comparison vector
@@ -22,57 +24,85 @@ have to be wrangled into one dataframe with different names for each record vect
 class FeatureEngineer(FeatureBase):
     """This class generates features from the merged census data. Implemented
        features are listed in self.features_avail. The values in self.features_avail
-       are functors in preprocessing.py. Look there for the needed parameters
-       for each. Use add_feature() to add all the features that you need, and
-       then use transfrom() to generate the features that were appended to self.features.
-       transform() will call the functors in self.features sequentially, which
-       is important if some of your features depend on the creation of other features
-       first.
+       are functors in comparisons.py. To add a comparison, use tuples, i.e.
+       feature_engineer.add_comparison(("first_name",), ("jaro-winkler",)).
+       I do this because a comparison could potentially work on multiple columns
+       and/or have a pipeline of pre/post-processing of the comparison (e.g. weights).
+       A cleaner way of doing this would be great. Also, most of the preprocessing
+       steps should now be done on the record sets themselves.
     """
     def __init__(self):
-        self.features_avail = {"distance": EuclideanDistance(variables=[], new_cols=[]),
-                               "SDX": PhoneticCode(encoding="SDX"),
-                               "NYSIIS": PhoneticCode(encoding="NYSIIS"),
-                               "dmetaphone": PhoneticCode(),
-                               "jaro-winkler": StringDistance(dist_metric="jw"),
-                               "levenshtein": StringDistance(),
-                               "ngram": Bigram(),
-                               "drop": DropVars(cols_to_drop=[]),
-                               "bool match": BooleanMatch(vars_to_match=[]),
-                               "fuzzy bool match": FuzzyBoolean(vars_fuzzy=[]),
-                               "euclidean distance": EuclideanDistance(variables=[], new_cols=[]),
-                               "imputer": ColumnImputer(cols=[]),
-                               "commonality weight": CommonalityWeight(cols=[], comm_cols=[])} #FIXME add the other preprocessing functors
-        self.features = []
-        self.raw_feature_attributes = {}
-        self.pipeline = None
+        self.features_avail = {"jw": JW(),
+                               "euclidean dist": EuclideanDistance(),
+                               "geo dist": GeoDistance(),
+                               "bigram": BiGram(),
+                               "trigram": TriGram(),
+                               "ngram": NGram(),
+                               "exact match": BooleanMatch(),
+                               "commonality weight": CommonalityWeight()}
+        self.raw_features = OrderedDict() #FIXME add this for saving/loading
+        self.rec_columns = set()
+        self.ncompares = 0
+        self.pipeline = OrderedDict()
 
-    def add_feature(self, feature_name, param_dict):
-        feat = self.features_avail[feature_name]
-        feat.__init__(**param_dict)
-        count = 0
-        while f"{feature_name}_{count}" in dict(self.features):
-            count += 1
-        self.raw_feature_attributes[f"{feature_name}_{count}"] = param_dict
-        self.features.append((f"{feature_name}_{count}", feat)) #FIXME can this take same feature names, or do I have to check for that?
-
-    def build(self):
+    def add_comparison(self, record_col, compare_type, extra_args=None):
+        if extra_args is None:
+            extra_args = ({} for i in range(len(compare_type)))
+        self.raw_features[record_col] = [compare_type, tuple(extra_args)]
+        print(extra_args)
+        for i in record_col:
+            self.rec_columns.add(i)
+        self.ncompares += 1
+        comp_funcs = []
+        for i,j in zip(compare_type, extra_args):
+            comp_func = copy.deepcopy(self.features_avail[i])
+            comp_func.__init__(**j)
+            print(comp_func)
+            if len(record_col) == 1:
+                comp_func.col = record_col[0]
+            else:
+                comp_func.col = list(record_col)
+            comp_funcs.append(comp_func)
+        self.pipeline[record_col] = comp_funcs
+        
+    def rm_comparison(self, record_col): #FIXME this does not account for a feature col that has multiple comparisons.
+        self.pipeline.pop(record_col)
+        for i in record_col:
+            self.rec_columns.remove(record_col)
+        self.ncompares -= 1
+        
+    def check_pipeline(self, example_rec):
         """Build the pipeline"""
-        self.pipeline = Pipeline(self.features)
+        unused_cols = set(example_rec.dtype.names).difference(self.rec_columns)
+        if len(unused_cols) > 0:
+            warnings.warn(f"The column(s) {unused_cols} do(es) not have a \
+                              comparison function.", RuntimeWarning)
+            
+        extra_cols = self.rec_columns.difference(set(example_rec.dtype.names))
+        if len(extra_cols) > 0:
+            raise Exception(f"The column(s) {extra_cols} are not in the \
+                                example record. Please remove the offending \
+                                columns and run check_pipeline again.")
 
     def compare(self, rec1, rec2):
-        rec1.columns = [f"{i}_1" for i in rec1.columns]
-        rec2.columns = [f"{i}_2" for i in rec2.columns]
-        X = pd.concat([rec1, rec2], axis=1)
-        return self.pipeline.transform(X)
+        comp_vec = np.ndarray(self.ncompares, dtype=np.float32)
+        i = 0
+        for col in self.pipeline:
+            pipe_params = [rec1, rec2]
+            for comp_func in self.pipeline[col]:
+                pipe_params = comp_func.transform(*pipe_params)
+            comp_vec[i] = pipe_params[0]
+            i += 1
+        return comp_vec
 
+    def save(self, file_path):
+            with open(file_path, 'w') as f:
+                json.dump(OrderedDict((str(k),v) for k,v in self.raw_features.items()), f)
 
-    def save(self, path):
-        with open(path, "w") as file:
-            for feat in self.raw_feature_attributes:
-                file.write(feat + "|" + self.raw_feature_attributes[feat])
-
-    def load(self, path):
-        with open(path, "r") as file:
-            for line in file.readlines():
-                self.add_feature(line.split("|")) #FIXME
+    def load(self, file_path):
+        self.__init__()
+        with open(file_path, 'r') as f:
+            self.raw_features = json.load(f, object_pairs_hook=OrderedDict)
+        self.raw_features = {literal_eval(k):v for k, v in self.raw_features.items()}
+        for key in self.raw_features:
+            self.add_comparison(key, tuple(self.raw_features[key][0]), tuple(self.raw_features[key][1]))

@@ -11,7 +11,7 @@ from scipy.sparse import csr_matrix
 import turbodbc
 from Splycer.base import CompareBase
 
-class CompareCSR(CompareBase):
+class PairsCSR(PairsBase):
     """Comparisons are stored in a Compressed Sparse Row matrix. This is optimal
        for large datasets that restric the number of compares significantly
        through blocking
@@ -47,7 +47,7 @@ class CompareCSR(CompareBase):
             for j in range(self.indptr[i], self.indptr[i+1]):
                 yield (i, self.indices[j])
 
-class CompareDB(CompareBase):
+class PairsDB(PairsBase):
     """Comparisons are stored in a sql database. This object assumes that it is
        stored as a table of unique identifier pairs.
     """
@@ -79,7 +79,7 @@ class CompareDB(CompareBase):
             row = self.cursor.fetchone()
             yield row #FIXME turn to numpy array
 
-class CompareMatrix(CompareBase):
+class CPairsMatrix(PairsBase):
     """Comparisons are stored in a matrix, where matrix[i, j] = 1 if the two
        records are valid comparisons. This is best for small datasets since
        you can quickly look up any compare. However, it takes more space than the
