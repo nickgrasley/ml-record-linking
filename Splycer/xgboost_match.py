@@ -13,7 +13,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, precision_score, recall_score
 from time import time
-from Splycer.base import LinkerBase
+from base import LinkerBase
 
 class XGBoostMatch(LinkerBase):
     """This class either trains a new model given the data or generates predictions
@@ -34,6 +34,7 @@ class XGBoostMatch(LinkerBase):
             comp_array[i] = self.comp_eng.compare(self.recordset1.get_record(uid1), 
                                                   self.recordset2.get_record(uid2)) #FIXME implement to_array(float32) in FeatureEngineer
         return comp_array, labels
+    
     def train(self, test_size=0.2, random_state=94):
         """Train the xgboost model. This is agnostic to a grid search, but you
         have to set up the grid search in your own script.

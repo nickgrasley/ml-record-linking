@@ -38,8 +38,7 @@ class FeatureEngineer(FeatureBase):
                                "bigram": BiGram(),
                                "trigram": TriGram(),
                                "ngram": NGram(),
-                               "exact match": BooleanMatch(),
-                               "commonality weight": CommonalityWeight()}
+                               "exact match": BooleanMatch()}
         self.raw_features = OrderedDict() #FIXME add this for saving/loading
         self.rec_columns = set()
         self.ncompares = 0
@@ -50,20 +49,15 @@ class FeatureEngineer(FeatureBase):
             extra_args = ({} for i in range(len(compare_type)))
         self.raw_features[record_col] = [compare_type, tuple(extra_args)]
         print(extra_args)
-        for i in record_col:
-            self.rec_columns.add(i)
+        self.rec_columns.add(record_col)
         self.ncompares += 1
-        comp_funcs = []
-        for i,j in zip(compare_type, extra_args):
-            comp_func = copy.deepcopy(self.features_avail[i])
-            comp_func.__init__(**j)
-            print(comp_func)
-            if len(record_col) == 1:
-                comp_func.col = record_col[0]
-            else:
-                comp_func.col = list(record_col)
-            comp_funcs.append(comp_func)
-        self.pipeline[record_col] = comp_funcs
+        comp_func = copy.deepcopy(self.features_avail[compare_type])
+        comp_func.__init__(**extra_args)
+        if len(record_col) == 1:
+            comp_func.col = record_col[0]
+        else:
+            comp_func.col = list(record_col)
+        self.pipeline[record_col] = comp_func
         
     def rm_comparison(self, record_col): #FIXME this does not account for a feature col that has multiple comparisons.
         self.pipeline.pop(record_col)
@@ -89,9 +83,7 @@ class FeatureEngineer(FeatureBase):
         i = 0
         for col in self.pipeline:
             pipe_params = [rec1, rec2]
-            for comp_func in self.pipeline[col]:
-                pipe_params = comp_func.transform(*pipe_params)
-            comp_vec[i] = pipe_params[0]
+            comp_vec[i] = self.pipeline[col].transform(*pipe_params)
             i += 1
         return comp_vec
 

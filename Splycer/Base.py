@@ -6,6 +6,7 @@ Created on Wed Jul 17 20:13:29 2019
 @author: Nick Grasley (ngrasley@stanford.edu)
 """
 import abc
+import numpy as np
 
 class RecordBase(metaclass=abc.ABCMeta):
     """Abstract container for any record set. Other classes
@@ -41,8 +42,26 @@ class CompareBase(metaclass=abc.ABCMeta):
     def __init__(self, col):
         self.col = col
     @abc.abstractmethod
-    def transform(self):
+    def compare(self, rec1, rec2):
         """Perform the comparison operation"""
+    def transform(self, rec1, rec2):
+        return self.compare(rec1, rec2)
+
+class WeightedCompareBase(CompareBase, metaclass=abc.ABCMeta):
+    def __init__(self, col, comm_weight=None, comm_col=None):
+        self.col = col
+        self.comm_weight = comm_weight
+        self.comm_col = comm_col
+        
+    def transform(self, rec1, rec2):
+        return self.weight( self.compare(rec1, rec2) )
+    
+    def weight(self, rec1, rec2, comp_val):
+        if self.comm_weight == "d":
+            return comp_val / np.log1p( (rec1[self.comm_col] + rec2[self.comm_col]) / 2 )
+        elif self.comm_weight == "m":
+            return comp_val * np.log1p( (rec1[self.comm_col] + rec2[self.comm_col]) / 2 )
+        return comp_val
 
 class FeatureBase(metaclass=abc.ABCMeta):
     """Abstract class that handles how records are compared."""

@@ -9,7 +9,7 @@ Created on Wed Jul 22 14:06:40 2019
 import numpy as np
 from scipy.sparse import csr_matrix
 import turbodbc
-from Splycer.base import CompareBase
+from base import PairsBase
 
 class PairsCSR(PairsBase):
     """Comparisons are stored in a Compressed Sparse Row matrix. This is optimal
@@ -79,7 +79,7 @@ class PairsDB(PairsBase):
             row = self.cursor.fetchone()
             yield row #FIXME turn to numpy array
 
-class CPairsMatrix(PairsBase):
+class PairsMatrix(PairsBase):
     """Comparisons are stored in a matrix, where matrix[i, j] = 1 if the two
        records are valid comparisons. This is best for small datasets since
        you can quickly look up any compare. However, it takes more space than the

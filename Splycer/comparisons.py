@@ -9,67 +9,55 @@ import numpy as np
 import jellyfish
 import geopy.distance as gd
 import ngram
-from base import CompareBase
+from base import WeightedCompareBase
 
-class JW(CompareBase):
-    def __init__(self, col="pr_name_gn"):
+class JW(WeightedCompareBase):
+    def __init__(self, col="pr_name_gn", comm_weight=None, comm_col=None):
         """Generate any string distance for a column of strings
         Parameters:
             string_col (list): a list of the columns that you want string distance for. This should be the base name without the year.
             dist_metric (string): the name of the string distance metric that you want to use.
                                   Valid metrics are jw, levenshtein.
         """
-        super().__init__(col)
+        super().__init__(col, comm_weight=None, comm_col=None)
         self.dist_type = np.vectorize(jellyfish.jaro_winkler)
         
-    def transform(self, rec1, rec2):
-        return [self.dist_type(rec1[self.col], rec2[self.col]), rec1, rec2]
+    def compare(self, rec1, rec2):
+        return self.dist_type(rec1[self.col], rec2[self.col])
     
-class EuclideanDistance(CompareBase):
-    def __init__(self, col=[f"first_vec{i}" for i in range(200)]):
-        super().__init__(col)
+class EuclideanDistance(WeightedCompareBase):
+    def __init__(self, col=[f"first_vec{i}" for i in range(200)], comm_weight=None, comm_col=None):
+        super().__init__(col, comm_weight=None, comm_col=None)
     
-    def transform(self, rec1, rec2):
-        return [np.linalg.norm(rec1[self.col].view(np.float32) - rec2[self.col].view(np.float32)), rec1, rec2]
+    def compare(self, rec1, rec2):
+        return np.linalg.norm(rec1[self.col].view(np.float32) - rec2[self.col].view(np.float32))
         
         
-class GeoDistance(CompareBase):
-    def __init__(self, col=["event_lat", "event_lon"]):
-        super().__init__(col)
+class GeoDistance(WeightedCompareBase):
+    def __init__(self, col=["event_lat", "event_lon"], comm_weight=None, comm_col=None):
+        super().__init__(col, comm_weight=None, comm_col=None)
         
-    def transform(self, rec1, rec2):
-        return [gd.distance(rec1[self.col][0], rec2[self.col][0]).km, rec1, rec2]
+    def compare(self, rec1, rec2):
+        return gd.distance(rec1[self.col][0], rec2[self.col][0]).km
     
-class NGram(CompareBase):
-    def __init__(self, col="first_name", n=3):
-        super().__init__(col)
+class NGram(WeightedCompareBase):
+    def __init__(self, col="first_name", comm_weight=None, comm_col=None, n=3):
+        super().__init__(col, comm_weight=None, comm_col=None)
         self.ngram = np.vectorize(ngram.NGram.compare)
         self.n = n
-    def transform(self, rec1, rec2):
-        return [self.ngram(rec1[self.col], rec2[self.col], N=self.n), rec1, rec2]
+    def compare(self, rec1, rec2):
+        return self.ngram(rec1[self.col], rec2[self.col], N=self.n)
 
 class BiGram(NGram):
-    def __init__(self, col="first_name"):
+    def __init__(self, col="first_name", comm_weight=None, comm_col=None):
         super().__init__(col, 2)
         
 class TriGram(NGram):
-    def __init__(self, col="first_name"):
+    def __init__(self, col="first_name", comm_weight=None, comm_col=None):
         super().__init__(col, 3)
 
-class BooleanMatch(CompareBase):
-    def __init__(self, col="race"):
+class BooleanMatch(WeightedCompareBase):
+    def __init__(self, col="race", comm_weight=None, comm_col=None):
         super().__init__(col)
-    def transform(self, rec1, rec2):
-        return [(rec1[self.col] == rec2[self.col])[0], rec1, rec2]
-    
-class CommonalityWeight(CompareBase):
-    def __init__(self, col="first_name", comm_col=["first_comm"], divide=True):
-        super().__init__(col)
-        self.comm_col
-        self.divide = divide
-    def transform(self, comp_val, rec1, rec2):
-        if self.divide:
-            return [comp_val / ((np.log1p(rec1[self.comm_col]) + np.log1p(rec2[self.comm_col])) / 2)]
-        else:
-            return [comp_val * ((np.log1p(rec1[self.comm_col]) + np.log1p(rec2[self.comm_col])) / 2)]
-        
+    def compare(self, rec1, rec2):
+        return (rec1[self.col] == rec2[self.col])[0]

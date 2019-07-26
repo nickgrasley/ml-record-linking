@@ -8,7 +8,7 @@ Created on Mon Jul 22 14:02:20 2019
 import numpy as np
 import pandas as pd
 import turbodbc
-from Splycer.base import RecordBase
+from base import RecordBase
 
 class RecordDict(dict, RecordBase):
     """Records are organized in a dictionary with the key as a unique identifier
@@ -72,6 +72,6 @@ class RecordDataFrame(RecordBase):
         return self.df.loc[uid, :]
     def get_record(self, uid, var_list=None):
         if var_list is None:
-            return self.df.loc[uid, :]
-        return self.df.loc[uid, var_list]
+            return self.df.loc[[uid], :]
+        return self.df.loc[[uid], var_list]
 
