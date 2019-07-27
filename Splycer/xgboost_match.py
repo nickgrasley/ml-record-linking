@@ -24,15 +24,18 @@ class XGBoostMatch(LinkerBase):
         self.comp_eng = comp_eng
         self.model = model
 
-    def create_training_set(self):
+    def create_training_set(self, maxsize=1000000):
         """Used in the train function. Generate comparison vectors."""
-        comp_array = np.zeros((self.compareset.ncompares, self.comp_eng.nfeats), dtype=np.float32) #FIXME add shape features
-        labels = np.zeros(self.compareset.shape[0], dtype=np.uint8)
+        nrows = self.compareset.ncompares
+        if maxsize < self.compareset.ncompares:
+            nrows = maxsize
+        comp_array = np.zeros((nrows, self.comp_eng.ncompares), dtype=np.float32)
+        labels = np.zeros(nrows, dtype=np.uint8)
         i = 0
         for uid1, uid2, label in self.compareset:
             labels[i] = label
             comp_array[i] = self.comp_eng.compare(self.recordset1.get_record(uid1), 
-                                                  self.recordset2.get_record(uid2)) #FIXME implement to_array(float32) in FeatureEngineer
+                                                  self.recordset2.get_record(uid2))
         return comp_array, labels
     
     def train(self, test_size=0.2, random_state=94):
@@ -53,19 +56,19 @@ class XGBoostMatch(LinkerBase):
         print(f"number of training obs: {X.shape[0]}, training time: {end - start},\n\
                 precision: {self.test_precision}, recall: {self.test_recall}")
         
-    def is_link(self, candidate_pair):
+    def is_link(self, candidate_pair1, candidate_pair2):
         """Use the model's builtin cutoff to say whether a comparison pair is a link. This
            does not account for duplicates since it only predicts one pair at a time.
         """
-        rec1 = self.recordset1.get_record(candidate_pair[0])
-        rec2 = self.recordset2.get_record(candidate_pair[1])
+        rec1 = self.recordset1.get_record(candidate_pair1)
+        rec2 = self.recordset2.get_record(candidate_pair2)
         comp_vec = self.comp_eng.compare(rec1, rec2)
         return self.model.predict(comp_vec)
     
-    def link_proba(self, candidate_pair):
+    def link_proba(self, candidate_pair1, candidate_pair2):
         """Generate probability prediction for a comparison pair."""
-        rec1 = self.recordset1.get_record(candidate_pair[0])
-        rec2 = self.recordset2.get_record(candidate_pair[1])
+        rec1 = self.recordset1.get_record(candidate_pair1)
+        rec2 = self.recordset2.get_record(candidate_pair2)
         comp_vec = self.comp_eng.compare(rec1, rec2)
         return self.model.predict_proba(comp_vec)[0][0] #FIXME check that this is the correct probability
     
@@ -73,12 +76,13 @@ class XGBoostMatch(LinkerBase):
         """Run the model on the full compare set, writing results to file."""
         outfile = open(outfile, "w")
         for candidate_pair in self.compareset.get_pairs():
-            match_proba = self.link_proba(candidate_pair)
+            match_proba = self.link_proba(*candidate_pair)
             if self.above_thresh(match_proba):
                 outfile.write(f"{candidate_pair[0]},{candidate_pair[1]},{match_proba}")
-        #FIXME should I implement remove_duplicates in run itself?
+        outfile.close()
+        #TODO should I implement remove_duplicates in run itself?
             
-    def remove_duplicates(self):
+    def rm_duplicates(self):
         raise NotImplementedError()
         
     def save(self, path): #FIXME this isn't all that I want to save

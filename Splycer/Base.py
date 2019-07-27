@@ -54,7 +54,7 @@ class WeightedCompareBase(CompareBase, metaclass=abc.ABCMeta):
         self.comm_col = comm_col
         
     def transform(self, rec1, rec2):
-        return self.weight( self.compare(rec1, rec2) )
+        return self.weight(rec1, rec2, self.compare(rec1, rec2) )
     
     def weight(self, rec1, rec2, comp_val):
         if self.comm_weight == "d":

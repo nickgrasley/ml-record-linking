@@ -16,8 +16,9 @@ class PairsCSR(PairsBase):
        for large datasets that restric the number of compares significantly
        through blocking
     """
-    def __init__(self, record_ids, uids1, uids2, data):
-        self.record_ids = record_ids
+    def __init__(self, record_id1, record_id2, uids1, uids2, data):
+        self.record_id1 = record_id1
+        self.record_id2 = record_id2
         matrix = csr_matrix((data, (uids1, uids2)))
         self.indptr = matrix.indptr
         self.indices = matrix.indices
@@ -51,8 +52,9 @@ class PairsDB(PairsBase):
     """Comparisons are stored in a sql database. This object assumes that it is
        stored as a table of unique identifier pairs.
     """
-    def __init__(self, record_ids, table_name, conn_str, idx_cols):
-        self.record_ids = record_ids
+    def __init__(self, record_id1, record_id2, table_name, conn_str, idx_cols):
+        self.record_id1 = record_id1
+        self.record_id2 = record_id2
         self.table_name = table_name
         self.idx_cols = idx_cols
         self.conn = turbodbc.connect(conn_str)
@@ -85,8 +87,9 @@ class PairsMatrix(PairsBase):
        you can quickly look up any compare. However, it takes more space than the
        other Compare objects.
     """
-    def __init__(self, record_ids, compare_matrix):
-        self.record_ids = record_ids
+    def __init__(self, record_id1, record_id2, compare_matrix):
+        self.record_id1 = record_id1
+        self.record_id2 = record_id2
         self.matrix = compare_matrix
         super().__init__(np.count_nonzero(compare_matrix))
 

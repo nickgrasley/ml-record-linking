@@ -23,7 +23,7 @@ class JW(WeightedCompareBase):
         self.dist_type = np.vectorize(jellyfish.jaro_winkler)
         
     def compare(self, rec1, rec2):
-        return self.dist_type(rec1[self.col], rec2[self.col])
+        return self.dist_type(rec1[self.col], rec2[self.col])[0]
     
 class EuclideanDistance(WeightedCompareBase):
     def __init__(self, col=[f"first_vec{i}" for i in range(200)], comm_weight=None, comm_col=None):
@@ -46,18 +46,18 @@ class NGram(WeightedCompareBase):
         self.ngram = np.vectorize(ngram.NGram.compare)
         self.n = n
     def compare(self, rec1, rec2):
-        return self.ngram(rec1[self.col], rec2[self.col], N=self.n)
+        return self.ngram(rec1[self.col], rec2[self.col], N=self.n)[0]
 
 class BiGram(NGram):
     def __init__(self, col="first_name", comm_weight=None, comm_col=None):
-        super().__init__(col, 2)
+        super().__init__(col, comm_weight, comm_col, 2)
         
 class TriGram(NGram):
     def __init__(self, col="first_name", comm_weight=None, comm_col=None):
-        super().__init__(col, 3)
+        super().__init__(col, comm_weight, comm_col, 3)
 
 class BooleanMatch(WeightedCompareBase):
     def __init__(self, col="race", comm_weight=None, comm_col=None):
-        super().__init__(col)
+        super().__init__(col, comm_weight, comm_col)
     def compare(self, rec1, rec2):
         return (rec1[self.col] == rec2[self.col])[0]

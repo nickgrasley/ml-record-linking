@@ -14,7 +14,8 @@ class RecordDict(dict, RecordBase):
     """Records are organized in a dictionary with the key as a unique identifier
        and the value as a numpy structured array of record info. Since dictionary
        lookup scales at a constant rate with the number of records, this object
-       is most efficient when you merely have to grab record information.
+       is most efficient when you merely have to grab record information. This
+       assumes the record arrays are numpy structured arrays.
     """
     def __init__(self, record_id, uids, features):
         self.record_id = record_id
@@ -35,7 +36,8 @@ class RecordDB(RecordBase):
         self.record_id = record_id
         self.table_name = table_name
         self.idx_name = idx_name
-        self.conn = turbodbc.connect(conn_str)
+        options = turbodbc.make_options(prefer_unicode=True) #Apparently necessary for MS sql servers.
+        self.conn = turbodbc.connect(conn_str, turbodbc_options=options)
         self.cursor = self.conn.cursor()
         self.cursor.execute(f"select column_name from information_schema.columns\
                               where table_name = '{self.table_name}'")
@@ -49,11 +51,11 @@ class RecordDB(RecordBase):
 
     def get_record(self, uid, var_list=None):
         if var_list is None:
-            data = pd.from_sql(self.conn, f"select * from {self.table_name}\
-                                            where {self.idx_name} = {uid}") #FIXME data format needs to be record array
+            data = self.cursor.execute(f"select * from {self.table_name} \
+                                         where {self.idx_name} = {uid}").fetchallnumpy()
         else:
-            data = pd.from_sql(self.conn, f"select {var_list} from {self.table_name}\
-                                            where {self.idx_name} = {uid}") #FIXME data format needs to be record array
+            data = self.cursor.execute(f"select {var_list} from {self.table_name}\
+                                         where {self.idx_name} = {uid}").fetchallnumpy()
         return data
 
 class RecordDataFrame(RecordBase):
@@ -69,9 +71,9 @@ class RecordDataFrame(RecordBase):
         else:
             self.df = pd.DataFrame(records, index=uid_col)
     def __getitem__(self, uid):
-        return self.df.loc[uid, :] #FIXME data format needs to be record array
+        return self.df.loc[uid, :]
     def get_record(self, uid, var_list=None):
         if var_list is None:
-            return self.df.loc[[uid], :] #FIXME data format needs to be record array
-        return self.df.loc[[uid], var_list] #FIXME data format needs to be record array
+            return self.df.loc[[uid], :]
+        return self.df.loc[[uid], var_list]
 

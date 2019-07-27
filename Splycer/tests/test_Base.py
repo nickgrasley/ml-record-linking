@@ -4,7 +4,10 @@ Created on Thu Jul 18 16:15:11 2019
 
 @author: ngrasley
 """
-from Splycer.Base import RecordDict, CompareCSR
+import sys
+sys.path.append('/Users/thegrasley/Documents/price_ra/ml-record-linking/Splycer')
+from record_set import RecordDict
+from pairs_set import PairsCSR
 import numpy as np
 def test_RecordDict():
     rec_id = 1
@@ -20,16 +23,16 @@ def build_CompareCSR():
     uids1 = np.array([0,1,1,2,2,2,3,3,3,3,4,4,4,4,4,5,5,5,5,5,5,6,6,6,6,6,6,6,7,7])
     uids2 = np.arange(30, dtype=np.uint32)
     data = np.tile([1,2], 15)
-    return CompareCSR(rec_id1, rec_id2, uids1, uids2, data)
+    return PairsCSR(rec_id1, rec_id2, uids1, uids2, data)
 
-def test_CompareCSR_getitem():
+def test_PairsCSR_getitem():
     comp_csr = build_CompareCSR()
     assert comp_csr[5, 20] == 1
     assert comp_csr[5, 17] == 2
     assert np.isnan(comp_csr[5, 22])
     assert np.isnan(comp_csr[5, 13])
 
-def test_CompareCSR_data():
+def test_PairsCSR_data():
     comp_csr = build_CompareCSR()
     assert comp_csr.record_id1 == 1
     assert comp_csr.record_id2 == 2
@@ -37,7 +40,7 @@ def test_CompareCSR_data():
     assert np.all(comp_csr.indices == np.arange(30))
     assert np.all(comp_csr.data == np.tile([1,2], 15))
 
-def test_CompareCSR_iter():
+def test_PairsCSR_iter():
     comp_csr = build_CompareCSR()
     test_i = 0
     test_j = 0
