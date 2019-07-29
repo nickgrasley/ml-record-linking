@@ -81,6 +81,7 @@ class LinkerBase(metaclass=abc.ABCMeta):
     """Abstract class for defining how to structure a linking
        algorithm into a Python object
     """
+    
     def __init__(self, recordset1, recordset2, compareset):
         self.recordset1 = recordset1
         self.recordset2 = recordset2

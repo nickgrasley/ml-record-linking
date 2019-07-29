@@ -5,7 +5,7 @@ Created on Thu Jul 18 16:15:11 2019
 @author: ngrasley
 """
 import sys
-sys.path.append('/Users/thegrasley/Documents/price_ra/ml-record-linking/Splycer')
+sys.path.append('R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/Splycer')
 from record_set import RecordDict
 from pairs_set import PairsCSR
 import numpy as np

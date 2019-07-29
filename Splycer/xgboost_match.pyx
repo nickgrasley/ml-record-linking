@@ -19,10 +19,11 @@ class XGBoostMatch(LinkerBase):
     """This class either trains a new model given the data or generates predictions
        using a previously trained model.
     """
-    def __init__(self, recordset1, recordset2, compareset, comp_eng, model):
+    def __init__(self, recordset1, recordset2, compareset, comp_eng, model, proba_threshold=0.5):
         super().__init__(recordset1, recordset2, compareset)
         self.comp_eng = comp_eng
         self.model = model
+        self.proba_thresh = proba_threshold
 
     def create_training_set(self, maxsize=1000000):
         """Used in the train function. Generate comparison vectors."""
@@ -74,34 +75,23 @@ class XGBoostMatch(LinkerBase):
     
     def run(self, outfile):
         """Run the model on the full compare set, writing results to file."""
+        cdef tuple candidate_pair
+        cdef double match_proba
+        cdef double proba_thresh = self.proba_thresh
+        cdef double start = time()
         outfile = open(outfile, "w")
         for candidate_pair in self.compareset.get_pairs():
             match_proba = self.link_proba(*candidate_pair)
-            if self.above_thresh(match_proba):
-                outfile.write(f"{candidate_pair[0]},{candidate_pair[1]},{match_proba}")
+            if match_proba > proba_thresh:
+                outfile.write(f"{candidate_pair[0]},{candidate_pair[1]},{match_proba}\n")
+            n += 1
         outfile.close()
         #TODO should I implement remove_duplicates in run itself?
             
     def rm_duplicates(self):
         raise NotImplementedError()
         
-    def save(self, path): #FIXME this isn't all that I want to save
-        if not os.path.isdir(path):
-            os.mkdir(path)
-        with open(f"{path}/model.xgboost", "w") as file:
-            pkl.dump(self.model, file)
-        with open(f"{path}/model_features.json", "w") as file:
-            file.write(f"\{'training_time': {self.time_taken}, 'confusion_mat': {self.confusion_mat},\
-                           'precision': {self.test_precision}, 'recall': {self.test_recall},\
-                           'hyper_params': {self.hyper_params}\}")
-                  
-    def load(self, path): #FIXME this isn't all that I want to load
-        with open(f"{path}/model.xgboost", "r") as file:
-            self.model = pkl.load(file)
-        with open(f"{path}/model_features.json", "r") as file:
-            json_data = json.load(file)
-            params = {'training_time': self.time_taken, 'confusion_mat': self.confusion_mat,
-                      'precision': self.test_precision, 'recall': self.test_recall,
-                      'hyper_params': self.hyper_params}
-            for key in params:
-                params[key] = json_data[key]
+    def save(self):
+        pass
+    def load(self):
+        pass

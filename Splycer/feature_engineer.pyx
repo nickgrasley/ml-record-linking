@@ -52,18 +52,18 @@ class FeatureEngineer(FeatureBase):
         if extra_args is None:
             extra_args = {}
         self.raw_compares.append([record_col, compare_type, extra_args])
-        for i in self.rec_columns:
-            self.rec_columns.add(i)
+        if type(record_col) == str or (type(record_col) == list and len(record_col) == 1):
+            self.rec_columns.add(record_col)
+        else:
+            for i in self.rec_columns:
+                self.rec_columns.add(i)
         self.ncompares += 1
         try:
             comp_func = copy.deepcopy(self.compares_avail[compare_type])
         except KeyError:
             print(f"{compare_type} is not a currently implemented comparison")
         comp_func.__init__(**extra_args)
-        if len(record_col) == 1 or type(record_col) == str:
-            comp_func.col = record_col[0]
-        else:
-            comp_func.col = list(record_col)
+        comp_func.col = record_col
         self.pipeline.append(comp_func)
         
     def rm_comparison(self, record_col): #FIXME this does not account for a feature col that has multiple comparisons.
@@ -101,10 +101,10 @@ class FeatureEngineer(FeatureBase):
            Returns:
                A float32 numpy array of the pipeline's comparison scores.
         """
-        comp_vec = np.ndarray(self.ncompares, dtype=np.float32)
-        i = 0
+        comp_vec = np.ndarray((1, self.ncompares), dtype=np.float32)
+        cdef int i = 0
         for compare in self.pipeline:
-            comp_vec[i] = compare.transform(rec1, rec2)
+            comp_vec[0,i] = compare.transform(rec1, rec2)
             i += 1
         return comp_vec
 

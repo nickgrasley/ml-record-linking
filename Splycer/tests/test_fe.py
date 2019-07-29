@@ -6,7 +6,7 @@ Created on Sat Jul 27 10:15:09 2019
 @author: thegrasley
 """
 import sys
-sys.path.append('/Users/thegrasley/Documents/price_ra/ml-record-linking/Splycer')
+sys.path.append('R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/Splycer')
 import pytest
 import numpy as np
 from comparisons import JW, GeoDistance, BooleanMatch
