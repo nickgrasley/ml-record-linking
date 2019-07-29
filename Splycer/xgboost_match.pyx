@@ -10,12 +10,14 @@ import pickle as pkl
 import os
 import json
 import numpy as np
+cimport numpy as np
+np.import_array()
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, precision_score, recall_score
 from time import time
 from base import LinkerBase
 
-class XGBoostMatch(LinkerBase):
+cdef class XGBoostMatch(LinkerBase):
     """This class either trains a new model given the data or generates predictions
        using a previously trained model.
     """
@@ -25,7 +27,7 @@ class XGBoostMatch(LinkerBase):
         self.model = model
         self.proba_thresh = proba_threshold
 
-    def create_training_set(self, maxsize=1000000):
+    cdef (np.ndarray, np.ndarray) create_training_set(self, maxsize=1000000):
         """Used in the train function. Generate comparison vectors."""
         nrows = self.compareset.ncompares
         if maxsize < self.compareset.ncompares:
@@ -37,7 +39,7 @@ class XGBoostMatch(LinkerBase):
             labels[i] = label
             comp_array[i] = self.comp_eng.compare(self.recordset1.get_record(uid1), 
                                                   self.recordset2.get_record(uid2))
-        return comp_array, labels
+        return (comp_array, labels)
     
     def train(self, test_size=0.2, random_state=94):
         """Train the xgboost model. This is agnostic to a grid search, but you
@@ -75,14 +77,13 @@ class XGBoostMatch(LinkerBase):
     
     def run(self, outfile):
         """Run the model on the full compare set, writing results to file."""
-        cdef tuple candidate_pair
+        cdef (int, int) candidate_pair
         cdef double match_proba
-        cdef double proba_thresh = self.proba_thresh
         cdef double start = time()
         outfile = open(outfile, "w")
         for candidate_pair in self.compareset.get_pairs():
             match_proba = self.link_proba(*candidate_pair)
-            if match_proba > proba_thresh:
+            if match_proba > self.proba_thresh:
                 outfile.write(f"{candidate_pair[0]},{candidate_pair[1]},{match_proba}\n")
             n += 1
         outfile.close()

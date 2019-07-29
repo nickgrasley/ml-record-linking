@@ -6,27 +6,37 @@ Created on Mon Jul 22 14:02:20 2019
 @author: Nick Grasley (ngrasley@stanford.edu)
 """
 import numpy as np
+cimport numpy as np
+np.import_array()
+
 import pandas as pd
 import turbodbc
 from base import RecordBase
 
-class RecordDict(dict, RecordBase):
+cdef class RecordDict(RecordBase):
     """Records are organized in a dictionary with the key as a unique identifier
        and the value as a numpy structured array of record info. Since dictionary
        lookup scales at a constant rate with the number of records, this object
        is most efficient when you merely have to grab record information. This
        assumes the record arrays are numpy structured arrays.
     """
+    cdef int record_id
+    cdef dict data
+    
     def __init__(self, record_id, uids, features):
         self.record_id = record_id
-        super().__init__(zip(uids, features))
-    def get_record(self, uid, var_list=None):
-        if var_list is None:
-            return self.get(uid)
+        self.data = dict(zip(uids, features))
+        
+    cpdef np.ndarray get_record(self, int uid, list var_list=[]):
+        if len(var_list) == 0:
+            return self.data.get(uid)
         else:
-            return self.get(uid)[var_list]
+            return self.data.get(uid)[var_list]
+        
+    def __getitem__(self, int uid):
+        return self.get_record(uid)
 
-class RecordDB(RecordBase):
+class RecordDB():
     """Records are stored in a sql database. If you need to do any blocking,
        sql handles a lot of the hard work of building data structures for efficient
        merges. You have to pay the upfront cost of setting up the database though.

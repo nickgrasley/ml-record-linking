@@ -8,17 +8,18 @@ Created on Wed Jul 17 20:13:29 2019
 import abc
 import numpy as np
 
-class RecordBase(metaclass=abc.ABCMeta):
+cdef class RecordBase():
     """Abstract container for any record set. Other classes
        expect some way to query records using get_record and/or
        __getitem__().
     """
-    @abc.abstractmethod
-    def get_record(self, uid, var_list=None):
+    
+    cdef np.ndarray get_record(self, int uid, list var_list=[]):
         """Query record info from its unique identifier (uid).
            Record must be return as a Pandas Series/DataFrame.
         """
-    @abc.abstractmethod
+        pass
+
     def __getitem__(self, uid):
         pass
 
@@ -77,28 +78,24 @@ class FeatureBase(metaclass=abc.ABCMeta):
     def load(self, path):
         """Load object."""
 
-class LinkerBase(metaclass=abc.ABCMeta):
+cdef class LinkerBase():
     """Abstract class for defining how to structure a linking
        algorithm into a Python object
     """
-    
-    def __init__(self, recordset1, recordset2, compareset):
-        self.recordset1 = recordset1
-        self.recordset2 = recordset2
-        self.compareset = compareset
 
-    @abc.abstractmethod
-    def is_link(self, candidate_pair):
+    cdef int is_link(self, candidate_pair):
         """Given a pair of uids, return True/False for whether the pair is a link"""
+        pass
 
-    @abc.abstractmethod
-    def run(self, outfile):
+
+    cdef void run(self, outfile):
         """Run the entire model from start to finish."""
+        pass
 
-    @abc.abstractmethod
-    def save(self):
+    cdef void save(self):
         """Save the model."""
+        pass
 
-    @abc.abstractmethod
-    def load(self):
+    cdef void load(self):
         """Load a model"""
+        pass
