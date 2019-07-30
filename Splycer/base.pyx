@@ -8,13 +8,13 @@ Created on Wed Jul 17 20:13:29 2019
 import abc
 import numpy as np
 
-cdef class RecordBase():
+class RecordBase():
     """Abstract container for any record set. Other classes
        expect some way to query records using get_record and/or
        __getitem__().
     """
-    
-    cdef np.ndarray get_record(self, int uid, list var_list=[]):
+
+    def get_record(self, int uid, list var_list=[]):
         """Query record info from its unique identifier (uid).
            Record must be return as a Pandas Series/DataFrame.
         """
