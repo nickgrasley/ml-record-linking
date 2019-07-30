@@ -67,21 +67,22 @@ class XGBoostMatch(LinkerBase):
     
     def link_proba(self, candidate_pair1, candidate_pair2):
         """Generate probability prediction for a comparison pair."""
-        rec1 = self.recordset1.get_record(candidate_pair1)
-        rec2 = self.recordset2.get_record(candidate_pair2)
-        comp_vec = self.comp_eng.compare(rec1, rec2)
         return self.model.predict_proba(comp_vec)[0][0] #FIXME check that this is the correct probability
     
-    def run(self, outfile):
+    def run(self, outfile, chunksize=100000):
         """Run the model on the full compare set, writing results to file."""
         outfile = open(outfile, "w")
+        cand_mat = np.ndarray((chunksize, 2), dtype=np.uint32)
+        comp_mat = np.ndarray((chunksize, self.comp_eng.ncompares), dtype=np.float32)
         for candidate_pair in self.compareset.get_pairs():
-            match_proba = self.link_proba(*candidate_pair)
-            if self.above_thresh(match_proba):
-                outfile.write(f"{candidate_pair[0]},{candidate_pair[1]},{match_proba}")
-        outfile.close()
-        #TODO should I implement remove_duplicates in run itself?
-            
+            for i in range(chunksize):
+                cand_mat[i] = candidate_pair
+                rec1 = self.recordset1.get_record(candidate_pair1)
+                rec2 = self.recordset2.get_record(candidate_pair2)
+                comp_mat[i] = self.comp_eng.compare(rec1, rec2)
+            preds = self.link_proba(comp_mat)
+            np.concatenate((comp_mat, preds), axis=1).savetxt(outfile)
+ 
     def rm_duplicates(self):
         raise NotImplementedError()
         
