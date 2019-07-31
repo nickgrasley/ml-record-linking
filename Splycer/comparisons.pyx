@@ -9,6 +9,7 @@ Created on Tue Jul 23 22:24:00 2019
 from itertools import chain
 import math
 import numpy as np
+cimport numpy as np
 import jellyfish
 import geopy.distance as gd
 from base import WeightedCompareBase
@@ -37,7 +38,7 @@ class EuclideanDistance(WeightedCompareBase):
     def __init__(self, col=[f"first_vec{i}" for i in range(200)], comm_weight=None, comm_col=None):
         super().__init__(col, comm_weight=comm_weight, comm_col=comm_col)
 
-    def compare(self, rec1, rec2):
+    def compare(self, np.ndarray rec1, np.ndarray rec2):
         return np.linalg.norm(np.array(rec1[self.col].tolist(), np.float32) - np.array(rec2[self.col].tolist(), np.float32), axis=1)
 
 class GeoDistance(WeightedCompareBase):
@@ -51,25 +52,35 @@ class NGram(WeightedCompareBase):
     def __init__(self, col="first_name", comm_weight=None, comm_col=None, n=3):
         super().__init__(col, comm_weight=comm_weight, comm_col=comm_col)
         self.n = n
-        self.jaccard_similarity = np.vectorize(jaccard_similarity)
-        self.create_ngram = np.vectorize(create_ngram)
+        self.create_ngram = np.vectorize(self.create_ngram)
+        self.jaccard_similarity = np.vectorize(self.jaccard_similarity)
 
-    def jaccard_similarity(x, y):
-        intersection_cardinality = len(set.intersection(*[set(x), set(y)]))
-        union_cardinality = len(set.union(*[set(x), set(y)]))
+    def jaccard_similarity(self, x, y):
+        intersection_cardinality = len(set.intersection(*[x, y]))
+        union_cardinality = len(set.union(*[x, y]))
         return intersection_cardinality / float(union_cardinality)
 
-    def create_ngram(sequence, n, pad_left=False, pad_right=False, pad_symbol=None):
+    def create_ngram(self, sequence, pad_left=False, pad_right=False, pad_symbol=None):
         if pad_left:
-            sequence = chain((pad_symbol,) * (n-1), sequence)
+            sequence = chain((pad_symbol,) * (self.n-1), sequence)
         if pad_right:
-            sequence = chain(sequence, (pad_symbol,) * (n-1))
+            sequence = chain(sequence, (pad_symbol,) * (self.n-1))
         sequence = list(sequence)
-        count = max(0, len(sequence) - n + 1)
-        return [tuple(sequence[i:i+n]) for i in range(count)]
+        count = max(0, len(sequence) - self.n + 1)
+        return {tuple(sequence[i:i+self.n]) for i in range(count)}
 
-    def compare(rec1, rec2):
-        return jaccard_similarity(create_ngram(rec1[self.col]), create_ngram(rec2[self.col]))
+    def compare(self, rec1, rec2):
+        return self.jaccard_similarity(self.create_ngram(rec1[self.col]), self.create_ngram(rec2[self.col]))
+
+#for testing purposes
+import ngram
+class NGram2(WeightedCompareBase):
+    def __init__(self, col="first_name", comm_weight=None, comm_col=None, n=3):
+        super().__init__(col, comm_weight=comm_weight, comm_col=comm_col)
+        self.ngram = np.vectorize(ngram.NGram.compare)
+        self.n = n
+    def compare(self, rec1, rec2):
+        return self.ngram(rec1[self.col], rec2[self.col], N=self.n)[0]
 
 class BiGram(NGram):
     def __init__(self, col="first_name", comm_weight=None, comm_col=None):
