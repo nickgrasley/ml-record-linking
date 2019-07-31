@@ -13,7 +13,7 @@ from ast import literal_eval
 import numpy as np
 from base import FeatureBase
 from comparisons import JW, EuclideanDistance, GeoDistance, BiGram, TriGram, NGram,\
-                        BooleanMatch
+                        BooleanMatch, AbsDistance
 
 class FeatureEngineer(FeatureBase):
     """This class generates an array of similarity/distance scores by building
@@ -22,6 +22,7 @@ class FeatureEngineer(FeatureBase):
     """
     def __init__(self):
         self.compares_avail = {"jw": JW(),
+                               "abs dist": AbsDistance(),
                                "euclidean dist": EuclideanDistance(),
                                "geo dist": GeoDistance(),
                                "bigram": BiGram(),
@@ -60,8 +61,8 @@ class FeatureEngineer(FeatureBase):
         except KeyError:
             print(f"{compare_type} is not a currently implemented comparison")
         comp_func.__init__(**extra_args)
-        if len(record_col) == 1 or type(record_col) == str:
-            comp_func.col = record_col[0]
+        if type(record_col) == str or (type(record_col) == list and len(record_col) == 1):
+            comp_func.col = record_col
         else:
             comp_func.col = list(record_col)
         self.pipeline.append(comp_func)
@@ -101,10 +102,10 @@ class FeatureEngineer(FeatureBase):
            Returns:
                A float32 numpy array of the pipeline's comparison scores.
         """
-        comp_vec = np.ndarray(self.ncompares, dtype=np.float32)
+        comp_vec = np.ndarray((rec1.shape[0],self.ncompares), dtype=np.float32)
         i = 0
         for compare in self.pipeline:
-            comp_vec[i] = compare.transform(rec1, rec2)
+            comp_vec[:,i] = compare.transform(rec1, rec2)
             i += 1
         return comp_vec
 

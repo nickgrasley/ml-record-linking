@@ -65,23 +65,20 @@ class XGBoostMatch(LinkerBase):
         comp_vec = self.comp_eng.compare(rec1, rec2)
         return self.model.predict(comp_vec)
     
-    def link_proba(self, candidate_pair1, candidate_pair2):
+    def link_proba(self, comp_mat):
         """Generate probability prediction for a comparison pair."""
-        return self.model.predict_proba(comp_vec)[0][0] #FIXME check that this is the correct probability
+        return self.model.predict_proba(comp_mat) #FIXME check that this is the correct probability
     
     def run(self, outfile, chunksize=100000):
         """Run the model on the full compare set, writing results to file."""
-        outfile = open(outfile, "w")
-        cand_mat = np.ndarray((chunksize, 2), dtype=np.uint32)
         comp_mat = np.ndarray((chunksize, self.comp_eng.ncompares), dtype=np.float32)
-        for candidate_pair in self.compareset.get_pairs():
-            for i in range(chunksize):
-                cand_mat[i] = candidate_pair
-                rec1 = self.recordset1.get_record(candidate_pair1)
-                rec2 = self.recordset2.get_record(candidate_pair2)
-                comp_mat[i] = self.comp_eng.compare(rec1, rec2)
-            preds = self.link_proba(comp_mat)
-            np.concatenate((comp_mat, preds), axis=1).savetxt(outfile)
+        with open(outfile, "wb") as f:
+            for cand_mat in self.compareset.get_pairs(chunksize=chunksize):
+                rec1 = self.recordset1.get_records(cand_mat[0])
+                rec2 = self.recordset2.get_records(cand_mat[1])
+                comp_mat = self.comp_eng.compare(rec1, rec2)
+                preds = self.link_proba(comp_mat)
+                np.savetxt(f, np.concatenate((np.array(cand_mat).T, preds), axis=1))
  
     def rm_duplicates(self):
         raise NotImplementedError()
@@ -92,9 +89,7 @@ class XGBoostMatch(LinkerBase):
         with open(f"{path}/model.xgboost", "w") as file:
             pkl.dump(self.model, file)
         with open(f"{path}/model_features.json", "w") as file:
-            file.write(f"\{'training_time': {self.time_taken}, 'confusion_mat': {self.confusion_mat},\
-                           'precision': {self.test_precision}, 'recall': {self.test_recall},\
-                           'hyper_params': {self.hyper_params}\}")
+            file.write(f"'training_time': {self.time_taken}, 'confusion_mat': {self.confusion_mat},'precision': {self.test_precision}, 'recall': {self.test_recall}, 'hyper_params': {self.hyper_params}")
                   
     def load(self, path): #FIXME this isn't all that I want to load
         with open(f"{path}/model.xgboost", "r") as file:

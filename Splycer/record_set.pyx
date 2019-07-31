@@ -25,6 +25,11 @@ class RecordDict(dict, RecordBase):
             return self.get(uid)
         else:
             return self.get(uid)[var_list]
+    def get_records(self, uids, var_list=None):
+        if var_list is None:
+            return np.array([self.get(i) for i in uids])
+        else:
+            return np.array([self.get(i) for i in uids])
 
 class RecordDB(RecordBase):
     """Records are stored in a sql database. If you need to do any blocking,
@@ -57,6 +62,15 @@ class RecordDB(RecordBase):
             data = self.cursor.execute(f"select {var_list} from {self.table_name}\
                                          where {self.idx_name} = {uid}").fetchallnumpy()
         return data
+    
+    def get_records(self, uids, var_list=None):
+        if var_list is None:
+            data = self.cursor.execute(f"select * from {self.table_name} \
+                                         where {self.idx_name} in {tuple(uids)}").fetchallnumpy()
+        else:
+            data = self.cursor.execute(f"select {var_list} from {self.table_name}\
+                                         where {self.idx_name} in {tuple(uids)}").fetchallnumpy()
+        return data
 
 class RecordDataFrame(RecordBase):
     """Records are stored in a Pandas DataFrame. This is best for small datasets
@@ -71,9 +85,14 @@ class RecordDataFrame(RecordBase):
         else:
             self.df = pd.DataFrame(records, index=uid_col)
     def __getitem__(self, uid):
-        return self.df.loc[uid, :]
+        return self.df.loc[uid, :].to_records(index=False)
     def get_record(self, uid, var_list=None):
         if var_list is None:
-            return self.df.loc[[uid], :]
-        return self.df.loc[[uid], var_list]
+            return self.df.loc[[uid], :].to_records(index=False)
+        return self.df.loc[[uid], var_list].to_records(index=False)
+    def get_records(self, uids, var_list=None):
+        if var_list is None:
+            return self.df.loc[uids, :].to_records(index=False)
+        else:
+            return self.df.loc[uids, var_list].to_records(index=False)
 

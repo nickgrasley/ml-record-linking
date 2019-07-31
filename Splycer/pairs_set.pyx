@@ -43,10 +43,38 @@ class PairsCSR(PairsBase):
                 return self.data[i]
         return np.nan
 
-    def get_pairs(self):
+    def get_pairs(self, chunksize=100000): #FIXME implement chunksize
         for i in range(np.shape(self.indptr)[0]-1):
             for j in range(self.indptr[i], self.indptr[i+1]):
                 yield (i, self.indices[j])
+                
+class PairsCOO(PairsBase):
+    def __init__(self, record_id1, record_id2, uids1, uids2, data):
+        self.record_id1 = record_id1
+        self.record_id2 = record_id2
+        self.row = list(uids1)
+        self.col = list(uids2)
+        self.data = list(data)
+    def __iter__(self):
+        for i,j,k in zip(self.matrix.row, self.matrix.col, self.matrix.data):
+            return (i,j,k)
+    
+    def __getitem__(self, uids):
+        uid1 = uids[0]
+        uid2 = uids[1]
+        for i in range(self.row.index(uid1), len(self.col)):
+            if uid2 == self.col[i]:
+                if uid1 == self.row[i]:
+                    return self.data[i]
+                else:
+                    break
+            if uid1 != self.col[i]:
+                break
+        return None
+        
+    def get_pairs(self, chunksize=100000):
+        for i in range(0, len(self.row), chunksize):
+            yield (self.row[i:i+chunksize], self.col[i:i+chunksize])
 
 class PairsDB(PairsBase):
     """Comparisons are stored in a sql database. This object assumes that it is
