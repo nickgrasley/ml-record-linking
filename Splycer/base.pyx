@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# cython: profile=True
 """
 Created on Wed Jul 17 20:13:29 2019
 
