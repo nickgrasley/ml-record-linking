@@ -86,14 +86,14 @@ class RecordDataFrame(RecordBase):
         else:
             self.df = pd.DataFrame(records, index=uid_col)
     def __getitem__(self, uid):
-        return self.df.loc[uid, :].to_records(index=False)
+        return self.df.loc[uid, :]
     def get_record(self, uid, var_list=None):
         if var_list is None:
-            return self.df.loc[[uid], :].to_records(index=False)
-        return self.df.loc[[uid], var_list].to_records(index=False)
+            return self.df.loc[[uid], :]
+        return self.df.loc[[uid], var_list]
     def get_records(self, uids, var_list=None):
         if var_list is None:
-            return self.df.loc[uids, :].to_records(index=False)
+            return self.df.loc[uids, :]
         else:
-            return self.df.loc[uids, var_list].to_records(index=False)
+            return self.df.loc[uids, var_list]
 

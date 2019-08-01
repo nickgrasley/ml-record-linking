@@ -26,7 +26,7 @@ class JW(WeightedCompareBase):
         self.dist_type = np.vectorize(jellyfish.jaro_winkler)
 
     def compare(self, rec1, rec2):
-        return self.dist_type(rec1[self.col], rec2[self.col])[0]
+        return self.dist_type(rec1[self.col], rec2[self.col])
 
 class AbsDistance(WeightedCompareBase):
     def __init__(self, col="immigration", comm_weight=None, comm_col=None):
@@ -39,16 +39,16 @@ class EuclideanDistance(WeightedCompareBase):
         super().__init__(col, comm_weight=comm_weight, comm_col=comm_col)
 
     def compare(self, np.ndarray rec1, np.ndarray rec2):
-        return np.linalg.norm(np.array(rec1[self.col].tolist(), np.float32) - np.array(rec2[self.col].tolist(), np.float32), axis=1)
+        return np.linalg.norm(rec1[self.col] - rec2[self.col], axis=1)
 
 class GeoDistance(WeightedCompareBase):
     def __init__(self, col=["event_lat", "event_lon"], comm_weight=None, comm_col=None):
         super().__init__(col, comm_weight=comm_weight, comm_col=comm_col)
 
     def compare(self, rec1, rec2):
-        return gd.distance(rec1[self.col][0], rec2[self.col][0]).km
+        return gd.distance(rec1[self.col], rec2[self.col]).km
 
-class NGram(WeightedCompareBase):
+class NGram2(WeightedCompareBase):
     def __init__(self, col="first_name", comm_weight=None, comm_col=None, n=3):
         super().__init__(col, comm_weight=comm_weight, comm_col=comm_col)
         self.n = n
@@ -74,7 +74,7 @@ class NGram(WeightedCompareBase):
 
 #for testing purposes
 import ngram
-class NGram2(WeightedCompareBase):
+class NGram(WeightedCompareBase):
     def __init__(self, col="first_name", comm_weight=None, comm_col=None, n=3):
         super().__init__(col, comm_weight=comm_weight, comm_col=comm_col)
         self.ngram = np.vectorize(ngram.NGram.compare)
@@ -94,4 +94,4 @@ class BooleanMatch(WeightedCompareBase):
     def __init__(self, col="race", comm_weight=None, comm_col=None):
         super().__init__(col, comm_weight, comm_col)
     def compare(self, rec1, rec2):
-        return (rec1[self.col] == rec2[self.col])[0]
+        return (rec1[self.col] == rec2[self.col])
