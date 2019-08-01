@@ -38,7 +38,7 @@ class EuclideanDistance(WeightedCompareBase):
     def __init__(self, col=[f"first_vec{i}" for i in range(200)], comm_weight=None, comm_col=None):
         super().__init__(col, comm_weight=comm_weight, comm_col=comm_col)
 
-    def compare(self, np.ndarray rec1, np.ndarray rec2):
+    def compare(self, rec1, rec2):
         return np.linalg.norm(rec1[self.col] - rec2[self.col], axis=1)
 
 class GeoDistance(WeightedCompareBase):

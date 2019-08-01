@@ -59,9 +59,9 @@ class WeightedCompareBase(CompareBase, metaclass=abc.ABCMeta):
     
     def weight(self, rec1, rec2, comp_val):
         if self.comm_weight == "d":
-            return comp_val / np.log1p( (rec1[self.comm_col] + rec2[self.comm_col]) / 2 )
+            return comp_val / np.log1p( (rec1[self.comm_col] + rec2[self.comm_col]).values / 2 )
         elif self.comm_weight == "m":
-            return comp_val * np.log1p( (rec1[self.comm_col] + rec2[self.comm_col]) / 2 )
+            return comp_val * np.log1p( (rec1[self.comm_col] + rec2[self.comm_col]).values / 2 )
         return comp_val
 
 class FeatureBase(metaclass=abc.ABCMeta):

@@ -15,6 +15,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, precision_score, recall_score
 from time import time
 from base import LinkerBase
+from tqdm import tqdm
 
 class XGBoostMatch(LinkerBase):
     """This class either trains a new model given the data or generates predictions
@@ -70,16 +71,20 @@ class XGBoostMatch(LinkerBase):
         """Generate probability prediction for a comparison pair."""
         return self.model.predict_proba(comp_mat) #FIXME check that this is the correct probability
     
-    def run(self, outfile, chunksize=100000):
+    def run(self, outfile, chunksize=100000): #FIXME output progress stats
         """Run the model on the full compare set, writing results to file."""
         comp_mat = np.ndarray((chunksize, self.comp_eng.ncompares), dtype=np.float32)
-        with open(outfile, "wb") as f:
-            for cand_mat in self.compareset.get_pairs(chunksize=chunksize):
-                rec1 = self.recordset1.get_records(cand_mat[0])
-                rec2 = self.recordset2.get_records(cand_mat[1])
-                comp_mat = self.comp_eng.compare(rec1, rec2)
-                preds = self.link_proba(comp_mat)
-                np.savetxt(f, np.concatenate((np.array(cand_mat).T, preds), axis=1))
+        with tqdm(total=self.compareset.ncompares) as pbar:
+            pbar.set_description("Predicting links...")
+            with open(outfile, "wb") as f:
+                for cand_mat in self.compareset.get_pairs(chunksize=chunksize):
+                    rec1 = self.recordset1.get_records(cand_mat[0])
+                    rec2 = self.recordset2.get_records(cand_mat[1])
+                    comp_mat = self.comp_eng.compare(rec1, rec2)
+                    preds = self.link_proba(comp_mat)
+                    np.savetxt(f, np.concatenate((np.array(cand_mat).T, preds), axis=1)[:,[0,1,4]], fmt="%i %i %1.4f") #FIXME make saving more clear what's what.
+                    pbar.update(chunksize)
+        print("Linking completed")
  
     def rm_duplicates(self):
         raise NotImplementedError()

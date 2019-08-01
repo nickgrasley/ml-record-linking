@@ -56,6 +56,7 @@ class PairsCOO(PairsBase):
         self.row = list(uids1)
         self.col = list(uids2)
         self.data = list(data)
+        super().__init__(len(self.row))
     def __iter__(self):
         for i,j,k in zip(self.matrix.row, self.matrix.col, self.matrix.data):
             return (i,j,k)
