@@ -6,7 +6,7 @@ Created on Sat Jul 27 10:15:09 2019
 @author: thegrasley
 """
 import sys
-sys.path.append('/Users/thegrasley/Documents/price_ra/ml-record-linking/Splycer')
+sys.path.append('R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/build/lib.win-amd64-3.7')
 import pytest
 import numpy as np
 from comparisons import JW, GeoDistance, BooleanMatch
@@ -24,7 +24,7 @@ def create_arrays():
                           dtype=rec_type)
     return rec1, rec2
 
-def add_comp_wo_args(self):
+def test_add_comp_wo_args():
     fe = FeatureEngineer()
     fe.add_comparison("first", "jw")
     assert fe.raw_compares == [["first", "jw", {}]]
@@ -32,7 +32,7 @@ def add_comp_wo_args(self):
     assert fe.ncompares == 1
     assert fe.pipeline == [JW("first")]
 
-def add_comp_w_args():
+def test_add_comp_w_args():
     fe = FeatureEngineer()
     fe.add_comparison("first", "jw", {"comm_weight": 'd', "comm_col": "first_comm"})
     assert fe.raw_compares == [["first", "jw", {"comm_weight": 'd', "comm_col": "first_comm"}]]
@@ -40,7 +40,7 @@ def add_comp_w_args():
     assert fe.ncompares == 1
     assert fe.pipeline == [JW("first", 'd', "first_comm")]
 
-def add_two_comps():
+def test_add_two_comps():
     fe = FeatureEngineer()
     fe.add_comparison("first", "jw")
     fe.add_comparision("race", "exact match")
@@ -49,7 +49,7 @@ def add_two_comps():
     assert fe.ncompares == 2
     assert fe.pipeline == [JW("first"), BooleanMatch("race")]
 
-def add_mult_rec_col_comp():
+def test_add_mult_rec_col_comp():
     fe = FeatureEngineer()
     fe.add_comparison(["bp_lat", "bp_lon"], "geo dist")
     assert fe.raw_compares == [[["bp_lat", "bp_lon"], "geo dist", {}]]
@@ -77,13 +77,13 @@ def check_pipeline_unused_cols():
 def check_pipeline_extra_cols():
     pass
 
-def compare_pipeline1(): #One compare
+def test_compare_pipeline1(): #One compare
     fe = FeatureEngineer()
     rec1, rec2 = create_arrays()
     fe.add_comparison("first", "jw")
     assert fe.compare(rec1, rec2) == np.array([0.96], dtype=np.float32)
 
-def compare_pipeline2(): #Multiple compares
+def test_compare_pipeline2(): #Multiple compares
     fe = FeatureEngineer()
     rec1, rec2 = create_arrays()
     fe.add_comparison("first", "jw")
@@ -95,11 +95,20 @@ def compare_pipeline2(): #Multiple compares
     fe.add_comparison(["first_vec1", "first_vec2", "first_vec3"], "euclidean dist")
     assert fe.compare(rec1, rec2) == np.array([0.96, 1., 0., 1., 0., 1067.6585766467526, 0.1979898987322331], dtype=np.float32)
 
-def compare_pipeline3(): #Commonality Weight
+def test_compare_pipeline3(): #Commonality Weight
     fe = FeatureEngineer()
     rec1, rec2 = create_arrays()
     fe.add_comparison("first", "jw", {"comm_weight": 'd', "comm_col": "first_comm"})
     assert fe.compare(rec1, rec2) == np.array([0.96 / np.log1p((rec1["first_comm"] + rec2["first_comm"]) / 2)], dtype=np.float32)
+
+def test_compare_mult_recs():
+    fe = FeatureEngineer()
+    fe.add_comparison("first", "jw")
+    rec1, rec2 = create_arrays()
+    rec3 = np.concatenate((rec1, rec2))
+    rec4 = np.concatenate((rec2, rec1))
+    assert np.array_equal(fe.compare(rec3, rec4), np.array([[0.96] * 2], dtype=np.float32))
+
     
 def save():
     pass
