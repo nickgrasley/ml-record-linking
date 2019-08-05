@@ -1,7 +1,79 @@
 Author: Nick Grasley (nicholas.a.grasley@gmail.com)
 
 This is a guide for how to run the xgboost pipeline from start to finish
-This is a guide for how to run the xgboost pipeline from start to finish.
+
+# Splycer
+
+There have been some major redesigns of the Splycer framework. Here is the new structure of it.
+
+## Base.py
+
+This handles the root problem of record linking. The root problem is that you have 
+two record sets and you need to compare records between them. 
+
+RecordBase is the [interface](https://dzone.com/articles/when-to-use-abstract-class-and-intreface) 
+that defines how all record linking methods will access a record set. It must have 
+get_record() (and __get_item__()), which accesses the record set by a unique id
+for each record. This allows the Splycer package to be agnostic to how the record
+data is stored for a user. I have defined a couple common record sets as examples.
+(note: the abc package used here allows Python to define abstract classes.)
+
+The first example is RecordDict. This implements a record set as a dictionary.
+A dictionary is great if you only have to look up uids because its inner structure
+is built for extremely fast lookup. RecordDB will be coded up for working on sql
+servers. RecordDataFrame will be coded up for working with DataFrames.
+
+CompareBase is the interface that defines how record sets are compared. Since
+comparing a record in record set 1 to every record in record set 2 is often
+computationally infeasible, CompareBase defines a container for record pairs
+that will be compared by a record linking model. Once again, record linking
+models are programmed to be agnostic to the way that compares are stored as
+long as you implement the methods in CompareBase. A Compressed Sparse Row
+(CSR) matrix and a sql server implementation are the most suitable for our
+purposes.
+
+## FeatureEngineer.py
+
+This class hasn't changed much since the original Splycer package. Its
+intended use is to build a pipeline of comparison functions to modify
+the original data. All of the available features are listed in the class.
+To build a pipeline, use the add_feature() method for each feature you want, 
+and then transform() to run the pipeline.
+
+## preprocessing.py
+
+These are all the available comparisons and feature modifications that I've
+coded up. I'm not a fan of the preprocessing name, but I'll keep it for now.
+If you want to implement another comparison, you code up a new class (technically
+a functor) that inherits from BaseEstimator and TransformerMixin. These are
+scikit-learn classes that allow you class to be included in a pipeline. Then,
+you must write a fit() and transform() method. If you don't have to fit() your
+comparison, you can just write `return self`. (note: I'll put a link to the
+scikit-learn documentation on this)
+
+## Linker.py
+
+This defines the interface for a linking algorithm. Originally, I had a Splycer
+class that attempted to be an all-in-one stop for every single linking method.
+However, this essentially turned Splycer into a [god object](https://en.wikipedia.org/wiki/God_object). 
+Instead, I've defined a Linker interface to standardize linking algorithms but
+still allow some flexibility to each algorithm. It might be useful to code up
+these linkers in some sort of defined pipeline, but that is for another day.
+
+## XGBoostMatch.py
+
+This serves the same function as the previous XGBoostMatch class, but it's been
+modified to inherit from Linker. This one is also more agnostic to the type
+of model you specify, so you can do grid searching or not. In fact, it's
+so agnostic that it will likely work with any classifier a la scikit-learn.
+Maybe I'll rename it SupervisedLinker.py. (note: I also need to implement
+the duplicate removal part of it.)
+
+## HouseholdMatch.py
+
+Issac Riley coded this up. It still needs to be implemented in the Linker interface,
+but that is for another day. It could also be implemented as a supervised learning
+approach and coded up as a model in the style of a scikit-learn classifier.
 
 # Data
 
@@ -118,89 +190,3 @@ the SQL server. Here's how to set it up.
 10. Click Finish
 11. Click the Test button to make sure everything is set up correctly.
 12. Press finish/OK/Apply until you exit out of administrative tools.
-
-# Quick Note on Splycer Class
-
-The Splycer class is used throughout the training and predicting, but it was only
-halfway completed. You'll notice that some of the functionality that should be in
-the Splycer class is done explicitly in the code. You have to live with this for
-now, but hopefully we get this cleaned up eventually. Also, make sure to only
-pickle your xgboost model and not the full Splycer class. If any changes are
-made to the Splycer class, you cannot unpickle your previously saved objects
-because pickle uses the current module to load in the data. The xgboost class
-is much more stable, so you can save it and expect it to load again.
-
-# Training
-
-You will need to train a new model for any linking involving the 1940 census because
-there is not immigration year in the 1940 census unfortunately. The script I used to
-train the current model is called training.py. There are a couple elements of this
-script that might break because the code under the hood had some changes. Specifically,
-you need to delete variables like in link_census.py line 118 and also the exact variables
-dropped on line 44. Notice last name vectors are not dropped here because they are deleted
-within the EuclideanDistance class (I couldn't get first name vectors to do the same for some reason).
-This is to reduce the memory consumption as fast as possible. You can also implement the
-SQL code of link_censuses.py (line 80) if you don't want to compile the entire census for
-all of the arks. Also, remember to drop immigration from the script wherever it's mentioned.
-
-First, you need to create the training data. You can do that by uploading an ark/index crosswalk
-to the SQL server. Then feed those the earlier census year of those arks into the binner
-with the true ark pair still attached. Finally, compare the true ark to the binned ark to get
-0s and 1s for whether the arks match or not. Feed this data into your training script, and you
-should have a new model afterwards. Just make sure to call it something different so you don't
-save over the old model.
-
-To reiterate:
-1. training.py handles training of a new model.
-2. change the way variables are dropped to that of link_censuses.py (or fix it, but I don't 
-   recommend this since it already runs)
-3. upload ark/index crosswalk (similar to wide_pid_ark_1910_1920 already on the SQL server).
-4. Run the early census arks through the Binner, keeping the true ark (you'll have to rename
-   the true ark and copy paste DynamicBinner.sql to a new file to modify it to keep the true ark)
-5. Update the way training.py interfaces with the SQL server so that it's like link_censuses.py
-   (or create a table like training_data on the SQL server)
-6. Run the training, saving the model as a new name (something to indicate it's for 1940).
-
-I would also recommend adding a test to make sure that the columns are the features you
-expect to train on. Dropping variables can often be a tricky business, and some might
-linger longer than expected and make it into your model.
-
-## 'Module Not Found' Error
-
-Sometimes it can't find the Splycer class or its pieces. To fix this, you either have
-to use `sys.path.append()` with the path to the Splycer class or do some weird
-combination of `from Splycer.Splycer import Splycer`.
-
-# Blocking
-
-Blocking is done by Splycer/DynamicBinner.sql. All you need to do to this script is
-change the years and chunk numbers. This works in 10 million person batches, so you
-need to calculate how many chunks you need to cover everyone in the first census
-(e.g. there are ~75 million people in the 1900 census, so you need chunks 0-7 for
-any linking involving the 1900 census.). This creates dbo.training_indices_year1_year2_num
-for each chunk. If you need extra room, just delete old ones.
-Note: I don't believe I blocked on immigration, but it could break if I did and
-you're linking 1940. You can also add/delete blocks if the blocking method for
-later censuses is too strict/relaxed. You must retrain a new model if you do this.
-
-
-# Predicting
-
-After blocking is completed, you can begin prediction. The link_censuses.py script handles
-all of the prediction. All you have to do is change the years (line 33), the model you're
-using (line 69), and enter the batch number that you want to run (function argument).
-Remember that you have to set up a DSN on each computer that you're running this script on.
-So far, I have run link_censuses.py on up to 8 computers at once with no errors from the
-SQL server. However, I try to space out when I start the script so that they are not all
-pinging the server at once. The output will be index_year1, index_year2, prob_match.
-
-# Handling Duplicates
-
-I tested how to drop duplicates in R:/JoePriceResearch/record_linking/data/preds3/duplicates_rule_handling.ipynb.
-I would put this code into a dedicated Python function outside of a notebook so it's easier
-to use. The most important part of this notebook is that we keep a match if it's probability
-of being a match is above 0.96 and all of the other duplicates have a probability that is
-0.05 less than the max probability. I then combine the results of dropping duplicates from both census
-years and drop any lingering duplicates from the merge to get the final result. Dropping duplicates
-isn't the most pressing part of this project, so if it's not working out, just wait for me to get
-back to help out with it.
