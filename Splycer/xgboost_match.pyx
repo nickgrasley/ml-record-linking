@@ -10,6 +10,7 @@ Created on Thu Jul 18 11:22:25 2019
 import pickle as pkl
 import os
 import json
+from itertools import zip_longest
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, precision_score, recall_score
@@ -31,31 +32,33 @@ class XGBoostMatch(LinkerBase):
         nrows = self.compareset.ncompares
         if maxsize < self.compareset.ncompares:
             nrows = maxsize
-        comp_array = np.zeros((nrows, self.comp_eng.ncompares), dtype=np.float32)
-        labels = np.zeros(nrows, dtype=np.uint8)
-        i = 0
+        uids1 = []
+        uids2 = []
+        labels = []
         for uid1, uid2, label in self.compareset:
-            labels[i] = label
-            comp_array[i] = self.comp_eng.compare(self.recordset1.get_record(uid1), 
-                                                  self.recordset2.get_record(uid2))
-        return comp_array, labels
+            uids1.append(uid1)
+            uids2.append(uid2)
+            labels.append(label)
+        comp_array = self.comp_eng.compare(self.recordset1.get_records(uids1), 
+                                           self.recordset2.get_records(uids2))
+        return comp_array, np.array(labels)
     
-    def train(self, test_size=0.2, random_state=94):
+    def train(self, test_size=0.2, random_state=94, maxsize=1000000):
         """Train the xgboost model. This is agnostic to a grid search, but you
         have to set up the grid search in your own script.
         """
         print("creating training set...")
-        X, y = self.create_training_set()
+        X, y = self.create_training_set(maxsize)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
         print("fitting model...")
-        start = time()
+        tic = time()
         self.model.fit(X, y)
-        end = time()
+        toc = time()
         y_pred = self.model.predict(X_test)
         self.confusion_mat = confusion_matrix(y_test, y_pred)
         self.test_precision = precision_score(y_test, y_pred)
         self.test_recall = recall_score(y_test, y_pred)
-        print(f"number of training obs: {X.shape[0]}, training time: {end - start},\n\
+        print(f"number of training obs: {X.shape[0]}, training time: {toc - tic},\n\
                 precision: {self.test_precision}, recall: {self.test_recall}")
         
     def is_link(self, candidate_pair1, candidate_pair2):
