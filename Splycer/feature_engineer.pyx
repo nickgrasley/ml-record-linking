@@ -54,8 +54,13 @@ class FeatureEngineer(FeatureBase):
         if extra_args is None:
             extra_args = {}
         self.raw_compares.append([record_col, compare_type, extra_args])
-        for i in self.rec_columns:
-            self.rec_columns.add(i)
+        if type(record_col) == list:
+            for i in record_col:
+                self.rec_columns.add(i)
+        elif type(record_col) == str:
+            self.rec_columns.add(record_col)
+        else:
+            raise TypeError("record column is neither a string nor a list")
         self.ncompares += 1
         try:
             comp_func = copy.deepcopy(self.compares_avail[compare_type])

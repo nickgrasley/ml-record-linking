@@ -9,7 +9,7 @@ import sys
 sys.path.append('R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/build/lib.win-amd64-3.7')
 import pytest
 import numpy as np
-from comparisons import JW, GeoDistance, BooleanMatch
+import pandas as pd
 from feature_engineer import FeatureEngineer
 
 def create_arrays():
@@ -22,32 +22,34 @@ def create_arrays():
                           dtype=rec_type)
     rec2 = np.array([("Bill", "Bob", "Smith", 1, 1, 40.14, 111.39, 1.21, 3.34, 1.01, 87)],
                           dtype=rec_type)
+    rec1 = pd.DataFrame().from_records(rec1)
+    rec2 = pd.DataFrame().from_records(rec2)
     return rec1, rec2
 
 def test_add_comp_wo_args():
     fe = FeatureEngineer()
     fe.add_comparison("first", "jw")
     assert fe.raw_compares == [["first", "jw", {}]]
-    assert fe.rec_columns == set("first")
+    assert fe.rec_columns == {"first"}
     assert fe.ncompares == 1
-    assert fe.pipeline == [JW("first")]
+    assert fe.pipeline[0].col == "first"
 
 def test_add_comp_w_args():
     fe = FeatureEngineer()
     fe.add_comparison("first", "jw", {"comm_weight": 'd', "comm_col": "first_comm"})
     assert fe.raw_compares == [["first", "jw", {"comm_weight": 'd', "comm_col": "first_comm"}]]
-    assert fe.rec_columns == set("first")
+    assert fe.rec_columns == {"first"}
     assert fe.ncompares == 1
-    assert fe.pipeline == [JW("first", 'd', "first_comm")]
+    assert fe.pipeline[0].comm_col == "first_comm"
 
 def test_add_two_comps():
     fe = FeatureEngineer()
     fe.add_comparison("first", "jw")
-    fe.add_comparision("race", "exact match")
+    fe.add_comparison("race", "exact match")
     assert fe.raw_compares == [["first", "jw", {}], ["race", "exact match", {}]]
     assert fe.rec_columns == {"first", "race"}
     assert fe.ncompares == 2
-    assert fe.pipeline == [JW("first"), BooleanMatch("race")]
+    assert fe.pipeline[1].col == "race"
 
 def test_add_mult_rec_col_comp():
     fe = FeatureEngineer()
@@ -55,7 +57,7 @@ def test_add_mult_rec_col_comp():
     assert fe.raw_compares == [[["bp_lat", "bp_lon"], "geo dist", {}]]
     assert fe.rec_columns == {"bp_lat", "bp_lon"}
     assert fe.ncompares == 1
-    assert fe.pipeline == [GeoDistance(["bp_lat", "bp_lon"])]
+    assert fe.pipeline[0].col == ["bp_lat", "bp_lon"]
 
 def throw_nonexist_comp_error():
     fe = FeatureEngineer()
@@ -93,7 +95,8 @@ def test_compare_pipeline2(): #Multiple compares
     fe.add_comparison("race", "exact match")
     fe.add_comparison(["bp_lat", "bp_lon"], "geo dist")
     fe.add_comparison(["first_vec1", "first_vec2", "first_vec3"], "euclidean dist")
-    assert fe.compare(rec1, rec2) == np.array([0.96, 1., 0., 1., 0., 1067.6585766467526, 0.1979898987322331], dtype=np.float32)
+    correct_ans = np.array([[0.96, 1., 0., 1., 0., 1.065943e+03, 0.1979898987322331]], dtype=np.float32)
+    np.testing.assert_array_almost_equal(fe.compare(rec1, rec2), correct_ans, 3)
 
 def test_compare_pipeline3(): #Commonality Weight
     fe = FeatureEngineer()
@@ -105,9 +108,9 @@ def test_compare_mult_recs():
     fe = FeatureEngineer()
     fe.add_comparison("first", "jw")
     rec1, rec2 = create_arrays()
-    rec3 = np.concatenate((rec1, rec2))
-    rec4 = np.concatenate((rec2, rec1))
-    assert np.array_equal(fe.compare(rec3, rec4), np.array([[0.96] * 2], dtype=np.float32))
+    rec3 = pd.concat([rec1, rec2])
+    rec4 = pd.concat([rec2, rec1])
+    np.testing.assert_array_almost_equal(fe.compare(rec3, rec4), np.array([[0.96], [0.96]], dtype=np.float32), 3)
 
     
 def save():

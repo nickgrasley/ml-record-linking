@@ -11,7 +11,7 @@ import pandas as pd
 import turbodbc
 from base import RecordBase
 
-class RecordDict(dict, RecordBase):
+class RecordDict(dict, RecordBase): #FIXME update the output format of data from this class. It should be a Pandas DataFrame.
     """Records are organized in a dictionary with the key as a unique identifier
        and the value as a numpy structured array of record info. Since dictionary
        lookup scales at a constant rate with the number of records, this object
@@ -23,45 +23,44 @@ class RecordDict(dict, RecordBase):
         super().__init__(zip(uids, features))
     def get_record(self, uid, var_list=None):
         if var_list is None:
-            return self.get(uid)
+            return pd.DataFrame.from_records(self.get(uid))
         else:
-            return self.get(uid)[var_list]
+            return pd.DataFrame.from_records(self.get(uid)[var_list])
     def get_records(self, uids, var_list=None):
+        rec_array = np.concatenate(tuple(self.get(i) for i in uids))
         if var_list is None:
-            return np.array([self.get(i) for i in uids])
-        else:
-            return np.array([self.get(i) for i in uids])
+            return pd.DataFrame.from_records(rec_array)
+        return pd.DataFrame.from_records(rec_array)[var_list]
 
-class RecordDB(RecordBase):
+class RecordDB(RecordBase): #FIXME this class assumes a standardized naming convention for all comparable record sets, i.e. I need to remove years from variable names.
     """Records are stored in a sql database. If you need to do any blocking,
        sql handles a lot of the hard work of building data structures for efficient
        merges. You have to pay the upfront cost of setting up the database though.
     """
-    def __init__(self, record_id, table_name, idx_name, conn_str):
+    def __init__(self, record_id, table_name, idx_name, dsn):
 
         self.record_id = record_id
         self.table_name = table_name
         self.idx_name = idx_name
         options = turbodbc.make_options(prefer_unicode=True) #Apparently necessary for MS sql servers.
-        self.conn = turbodbc.connect(conn_str, turbodbc_options=options)
+        self.conn = turbodbc.connect(dsn=dsn, turbodbc_options=options)
         self.cursor = self.conn.cursor()
-        self.cursor.execute(f"select column_name from information_schema.columns\
-                              where table_name = '{self.table_name}'")
+        """
+        self.cursor.execute(f"select column_name from information_schema.columns where table_name = '{self.table_name}'")
         cols = self.cursor.fetchall()
         self.cols = np.ndarray(len(cols), dtype="U50")
         for i in range(len(cols)):
             self.cols[i] = cols[i][0]
+        """
 
     def __getitem__(self, uid):
         return self.get_record(uid)
 
     def get_record(self, uid, var_list=None):
         if var_list is None:
-            data = self.cursor.execute(f"select * from {self.table_name} \
-                                         where {self.idx_name} = {uid}").fetchallnumpy()
+            data = pd.read_sql(f"select * from {self.table_name} where {self.idx_name} = {uid}", self.conn)
         else:
-            data = self.cursor.execute(f"select {var_list} from {self.table_name}\
-                                         where {self.idx_name} = {uid}").fetchallnumpy()
+            data = pd.read_sql(f"select {var_list} from {self.table_name} where {self.idx_name} = {uid}", self.conn)
         return data
     
     def get_records(self, uids, var_list=None):
