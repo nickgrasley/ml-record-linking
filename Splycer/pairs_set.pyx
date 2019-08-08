@@ -61,6 +61,7 @@ class PairsCOO(PairsBase):
         self.col = list(uids2)
         self.data = list(data)
         super().__init__(len(self.row))
+        
     def __iter__(self):
         for i,j,k in zip(self.row, self.col, self.data):
             yield (i,j,k)
@@ -102,6 +103,7 @@ class PairsDB(PairsBase):
         while row:
             row = self.cursor.fetchone()
             yield tuple(row)
+    
     def __getitem__(self, uids):
         uid1, uid2 = uids
         self.cursor.execute(f"select * from {self.table_name} \
