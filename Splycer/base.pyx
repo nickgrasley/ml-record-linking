@@ -15,10 +15,13 @@ class RecordBase(metaclass=abc.ABCMeta):
        __getitem__().
     """
     @abc.abstractmethod
-    def get_record(self, uid, var_list=None):
+    def get_record(self, uid):
         """Query record info from its unique identifier (uid).
            Record must be return as a Pandas Series/DataFrame.
         """
+    @abc.abstractmethod
+    def get_records(self, uids):
+        """Query multiple records at once."""
     @abc.abstractmethod
     def __getitem__(self, uid):
         pass

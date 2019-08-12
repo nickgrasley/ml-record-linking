@@ -20,17 +20,22 @@ class RecordDict(dict, RecordBase): #FIXME update the output format of data from
     """
     def __init__(self, record_id, uids, features):
         self.record_id = record_id
+        self.var_list = None
         super().__init__(zip(uids, features))
-    def get_record(self, uid, var_list=None):
-        if var_list is None:
+    
+    def set_var_list(self, var_list):
+        self.var_list = var_list
+    
+    def get_record(self, uid):
+        if self.var_list is None:
             return pd.DataFrame.from_records(self.get(uid))
-        else:
-            return pd.DataFrame.from_records(self.get(uid)[var_list])
-    def get_records(self, uids, var_list=None):
+        return pd.DataFrame.from_records(self.get(uid)[self.var_list])
+
+    def get_records(self, uids):
         rec_array = np.concatenate(tuple(self.get(i) for i in uids))
-        if var_list is None:
+        if self.var_list is None:
             return pd.DataFrame.from_records(rec_array)
-        return pd.DataFrame.from_records(rec_array)[var_list]
+        return pd.DataFrame.from_records(rec_array)[self.var_list]
 
 class RecordDB(RecordBase): #FIXME this class assumes a standardized naming convention for all comparable record sets, i.e. I need to remove years from variable names.
     """Records are stored in a sql database. If you need to do any blocking,
@@ -38,8 +43,8 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
        merges. You have to pay the upfront cost of setting up the database though.
     """
     def __init__(self, record_id, table_name, idx_name, dsn):
-
         self.record_id = record_id
+        self.var_list = None
         self.table_name = table_name
         self.idx_name = idx_name
         options = turbodbc.make_options(prefer_unicode=True) #Apparently necessary for MS sql servers.
@@ -54,24 +59,27 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
             self.cols[i] = cols[i][0]
         """
 
+    def set_var_list(self, var_list):
+        self.var_list = var_list
+        
     def set_joins(self, join_str):
         self.extra_joins = join_str
 
     def __getitem__(self, uid):
         return self.get_record(uid)
 
-    def get_record(self, uid, var_list=None):
-        if var_list is None:
+    def get_record(self, uid):
+        if self.var_list is None:
             data = pd.read_sql(f"select * from {self.table_name} where {self.idx_name} = {uid} {self.extra_joins}", self.conn)
         else:
-            data = pd.read_sql(f"select {var_list} from {self.table_name} where {self.idx_name} = {uid} {self.extra_joins}", self.conn)
+            data = pd.read_sql(f"select {self.var_list} from {self.table_name} where {self.idx_name} = {uid} {self.extra_joins}", self.conn)
         return data
     
-    def get_records(self, uids, var_list=None):
-        if var_list is None:
+    def get_records(self, uids):
+        if self.var_list is None:
             data = pd.read_sql(f"select * from {self.table_name} where {self.idx_name} in {tuple(uids)} {self.extra_joins}", self.conn)
         else:
-            data = pd.read_sql(f"select {var_list} from {self.table_name} where {self.idx_name} in {tuple(uids)} {self.extra_joins}", self.conn)
+            data = pd.read_sql(f"select {self.var_list} from {self.table_name} where {self.idx_name} in {tuple(uids)} {self.extra_joins}", self.conn)
         return data
 
 class RecordDataFrame(RecordBase):
@@ -82,22 +90,25 @@ class RecordDataFrame(RecordBase):
     """
     def __init__(self, record_id, records, uid_col=None):
         self.record_id = record_id
+        self.var_list = None
         if type(records) == pd.core.frame.DataFrame:
             self.df = records
         else:
             self.df = pd.DataFrame(records, index=uid_col)
 
+    def set_var_list(self, var_list):
+        self.var_list = var_list
+
     def __getitem__(self, uid):
         return self.df.loc[uid, :]
 
-    def get_record(self, uid, var_list=None):
-        if var_list is None:
+    def get_record(self, uid):
+        if self.var_list is None:
             return self.df.loc[[uid], :].reset_index(drop=True)
-        return self.df.loc[[uid], var_list].reset_index(drop=True)
+        return self.df.loc[[uid], self.var_list].reset_index(drop=True)
 
-    def get_records(self, uids, var_list=None):
-        if var_list is None:
+    def get_records(self, uids):
+        if self.var_list is None:
             return self.df.loc[uids, :].reset_index(drop=True)
-        else:
-            return self.df.loc[uids, var_list].reset_index(drop=True)
+        return self.df.loc[uids, self.var_list].reset_index(drop=True)
 
