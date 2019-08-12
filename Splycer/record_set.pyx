@@ -45,6 +45,7 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
         options = turbodbc.make_options(prefer_unicode=True) #Apparently necessary for MS sql servers.
         self.conn = turbodbc.connect(dsn=dsn, turbodbc_options=options)
         self.cursor = self.conn.cursor()
+        self.extra_joins = ""
         """
         self.cursor.execute(f"select column_name from information_schema.columns where table_name = '{self.table_name}'")
         cols = self.cursor.fetchall()
@@ -53,21 +54,24 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
             self.cols[i] = cols[i][0]
         """
 
+    def set_joins(self, join_str):
+        self.extra_joins = join_str
+
     def __getitem__(self, uid):
         return self.get_record(uid)
 
     def get_record(self, uid, var_list=None):
         if var_list is None:
-            data = pd.read_sql(f"select * from {self.table_name} where {self.idx_name} = {uid}", self.conn)
+            data = pd.read_sql(f"select * from {self.table_name} where {self.idx_name} = {uid} {self.extra_joins}", self.conn)
         else:
-            data = pd.read_sql(f"select {var_list} from {self.table_name} where {self.idx_name} = {uid}", self.conn)
+            data = pd.read_sql(f"select {var_list} from {self.table_name} where {self.idx_name} = {uid} {self.extra_joins}", self.conn)
         return data
     
     def get_records(self, uids, var_list=None):
         if var_list is None:
-            data = pd.read_sql(f"select * from {self.table_name} where {self.idx_name} in {tuple(uids)}", self.conn)
+            data = pd.read_sql(f"select * from {self.table_name} where {self.idx_name} in {tuple(uids)} {self.extra_joins}", self.conn)
         else:
-            data = pd.read_sql(f"select {var_list} from {self.table_name} where {self.idx_name} in {tuple(uids)}", self.conn)
+            data = pd.read_sql(f"select {var_list} from {self.table_name} where {self.idx_name} in {tuple(uids)} {self.extra_joins}", self.conn)
         return data
 
 class RecordDataFrame(RecordBase):
@@ -82,12 +86,15 @@ class RecordDataFrame(RecordBase):
             self.df = records
         else:
             self.df = pd.DataFrame(records, index=uid_col)
+
     def __getitem__(self, uid):
         return self.df.loc[uid, :]
+
     def get_record(self, uid, var_list=None):
         if var_list is None:
             return self.df.loc[[uid], :].reset_index(drop=True)
         return self.df.loc[[uid], var_list].reset_index(drop=True)
+
     def get_records(self, uids, var_list=None):
         if var_list is None:
             return self.df.loc[uids, :].reset_index(drop=True)
