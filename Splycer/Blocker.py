@@ -13,20 +13,26 @@ class BlockDB(PairsDB):
        [["first_soundex", "birth_year], ["last_soundex", "bp"]]. ["first_soundex", "birth_year"]
        is a block, meaning if two records are compared, they must match on both
        of those variables. A compare can show up if it satisfies either of the blocks.
+       Be warned, I haven't tested this.
     """
     def __init__(self, record_id1, record_id2, table_name, conn_str, idx_cols, table1, table2):
         super().__init__(record_id1, record_id2, table_name, conn_str, idx_cols)
         self.table1 = table1
         self.table2 = table2
         self.blocks = None
-    
+
+    def create_table(self):
+        sql_str = f"create table {self.table_name} ({self.idx_cols[0]} int primary key not null, {self.idx_cols[1]} int not null)"
+        self.cursor.execute(sql_str)
+        self.conn.commit()
+
     def set_blocks(self, blocks):
         self.blocks = blocks
-    
-    def block(self):
+
+    def block(self): #FIXME add a chunksize in case sql can't handle all the blocking at once.
         """Execute a block for a pair of years and a chosen sample"""
         sql_str = ""
-        for block in blocks:
+        for block in self.blocks:
             sql_str += f"""select t1.{self.idx_cols[0]}, t2.{self.idx_cols[1]}
                            into {self.table_name}
                            from self.table1 as t1
