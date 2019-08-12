@@ -12,6 +12,7 @@ import os
 import json
 from itertools import zip_longest
 import numpy as np
+import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, precision_score, recall_score
 from time import time
@@ -89,8 +90,22 @@ class XGBoostMatch(LinkerBase):
                     pbar.update(chunksize)
         print("Linking completed")
  
-    def rm_duplicates(self):
-        raise NotImplementedError()
+    def rm_duplicates(self, preds_file):
+        data = pd.read_csv(preds_file, header=None, names=["index1", "index2", "prob_match"])
+        #separate duplicates from non-duplicates
+        no_dup = data.drop_duplicates(subset=["index1", "index2"], keep=False)
+        dup = data.loc[data.duplicated(subset=["index1", "index2"], keep=False), :]
+        #apply rule to duplicates
+        nlargest = dup.groupby("index1").prob_match.nlargest(n=2)
+        max_prob = nlargest.groupby(level=0).max().rename("max_prob")
+        second_max_prob = nlargest.groupby(level=0).min().rename("second_max_prob")
+        dup = dup.merge(max_prob, how="left", left_on="index1", right_index=True).merge(second_max_prob, how="left", left_on="index1", right_index=True)
+        dup = ( (dup.max_prob > 0.96) & 
+                (abs(dup.max_prob - dup.second_max_prob) > .05) & 
+                (dup.prob_match == dup.max_prob) )
+
+        data = pd.concat([no_dup, dup])
+        data.to_csv(preds_file[:-4] + "_deduped.csv", header=None, index=None)
         
     def save(self, path): #FIXME this isn't all that I want to save
         if not os.path.isdir(path):
