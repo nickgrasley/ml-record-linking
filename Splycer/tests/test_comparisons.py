@@ -4,14 +4,12 @@ Created on Fri Aug  2 10:34:36 2019
 
 @author: ngrasley
 """
-import sys
-sys.path.append('R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/build/lib.win-amd64-3.7')
 import numpy as np
 import numpy.testing as npt
 import pandas as pd
 from haversine import haversine
 from nltk.util import ngrams
-from comparisons import JW, AbsDistance, EuclideanDistance, GeoDistance, BiGram,\
+from splycer.comparisons import JW, AbsDistance, EuclideanDistance, GeoDistance, BiGram,\
                         TriGram, NGram, BooleanMatch
 
 def create_dfs():

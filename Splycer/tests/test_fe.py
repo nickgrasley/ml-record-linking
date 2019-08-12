@@ -5,12 +5,10 @@ Created on Sat Jul 27 10:15:09 2019
 
 @author: thegrasley
 """
-import sys
-sys.path.append('R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/build/lib.win-amd64-3.7')
 import pytest
 import numpy as np
 import pandas as pd
-from feature_engineer import FeatureEngineer
+from splycer.feature_engineer import FeatureEngineer
 
 def create_arrays():
     rec_type = np.dtype([("first", "U10"), ("middle", "U10"), ("last", "U10"),

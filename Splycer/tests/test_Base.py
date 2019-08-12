@@ -4,10 +4,8 @@ Created on Thu Jul 18 16:15:11 2019
 
 @author: ngrasley
 """
-import sys
-sys.path.append('R:/JoePriceResearch/record_linking/projects/deep_learning/ml-record-linking/build/lib.win-amd64-3.7')
-from record_set import RecordDict, RecordDB
-from pairs_set import PairsCSR, PairsDB, PairsCOO, PairsMatrix
+from splycer.record_set import RecordDict, RecordDB
+from splycer.pairs_set import PairsCSR, PairsDB, PairsCOO, PairsMatrix
 import numpy as np
 import pandas as pd
 
