@@ -12,8 +12,8 @@ import json
 from collections import OrderedDict
 from ast import literal_eval
 import numpy as np
-from base import FeatureBase
-from comparisons import JW, EuclideanDistance, GeoDistance, BiGram, TriGram, NGram,\
+from splycer.base import FeatureBase
+from splycer.comparisons import JW, EuclideanDistance, GeoDistance, BiGram, TriGram, NGram,\
                         BooleanMatch, AbsDistance
 
 class FeatureEngineer(FeatureBase):
@@ -73,12 +73,11 @@ class FeatureEngineer(FeatureBase):
             comp_func.col = list(record_col)
         self.pipeline.append(comp_func)
         
-    def rm_comparison(self, record_col): #FIXME this does not account for a feature col that has multiple comparisons.
-        warnings.warn("rm_comparison is still in alpha. It may have unintended consequences.")
-        self.pipeline.pop(record_col)
-        for i in record_col:
-            self.rec_columns.remove(record_col)
-        self.ncompares -= 1
+    def rm_comparison(self, pipeline_index):
+        """Remove a comparison by its index in the pipeline list."""
+        self.pipeline.pop(pipeline_index)
+        self.raw_compares.pop(pipeline_index)
+        warnings.warn("rm_comparison does not update the rec_columns attribute.")
         
     def check_pipeline(self, example_rec):
         """check_pipeline currently checks for two things:
@@ -118,13 +117,15 @@ class FeatureEngineer(FeatureBase):
     def save(self, file_path):
         """Save the feature engineer at the specified file path."""
         with open(file_path, 'w') as f:
-            json.dump(OrderedDict((str(k),v) for k,v in self.raw_compares.items()), f)
+            for comp in self.raw_compares:
+                f.write(f"comp[0],comp[1],comp[2]\n")
 
     def load(self, file_path):
         """Load the feature engineer from the specified file path."""
         self.__init__()
         with open(file_path, 'r') as f:
-            self.raw_compares = json.load(f, object_pairs_hook=OrderedDict)
-        self.raw_compares = {literal_eval(k):v for k, v in self.raw_compares.items()}
-        for key in self.raw_compares:
-            self.add_comparison(key, tuple(self.raw_compares[key][0]), tuple(self.raw_compares[key][1]))
+            file_str = f.readline()
+            while file_str:
+                comp = file_str.split(',')
+                self.add_comparison(comp[0], comp[1], comp[2])
+                file_str.readline()

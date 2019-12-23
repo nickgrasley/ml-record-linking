@@ -103,7 +103,7 @@ class NGram(WeightedCompareBase):
             sequence = chain((pad_symbol,) * (self.n-1), sequence)
         if pad_right:
             sequence = chain(sequence, (pad_symbol,) * (self.n-1))
-        """
+        """   
         sequence = list(sequence.lower())
         count = max(0, len(sequence) - self.n + 1)
         return {tuple(sequence[i:i+self.n]) for i in range(count)}
@@ -136,4 +136,7 @@ class BooleanMatch(WeightedCompareBase):
         super().__init__(col, comm_weight, comm_col)
     def compare(self, rec1, rec2):
         return (rec1[self.col] == rec2[self.col]).mask(rec1[self.col].isna() | rec2[self.col].isna(), np.nan)
-        
+
+
+
+    

@@ -106,8 +106,8 @@ class PairsDB(PairsBase):
     
     def __getitem__(self, uids):
         uid1, uid2 = uids
-        self.cursor.execute(f"select * from {self.table_name} \
-                              where {self.idx_cols[0]} = {uid1} and {self.idx_cols[1]} = {uid2}")
+        self.cursor.execute(f'''select * from {self.table_name} 
+                              where {self.idx_cols[0]} = {uid1} and {self.idx_cols[1]} = {uid2}''')
         return self.cursor.fetchall()
 
     def get_pairs(self, chunksize=100000):

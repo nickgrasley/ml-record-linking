@@ -36,10 +36,14 @@ class XGBoostMatch(LinkerBase):
         uids1 = []
         uids2 = []
         labels = []
+        i = 1
         for uid1, uid2, label in self.compareset:
             uids1.append(uid1)
             uids2.append(uid2)
             labels.append(label)
+            if i > maxsize:
+                break
+            i += 1
         comp_array = self.comp_eng.compare(self.recordset1.get_records(uids1), 
                                            self.recordset2.get_records(uids2))
         return comp_array, np.array(labels)
@@ -59,6 +63,7 @@ class XGBoostMatch(LinkerBase):
         self.confusion_mat = confusion_matrix(y_test, y_pred)
         self.test_precision = precision_score(y_test, y_pred)
         self.test_recall = recall_score(y_test, y_pred)
+        self.train_time = toc-tic
         print(f"number of training obs: {X.shape[0]}, training time: {toc - tic},\n\
                 precision: {self.test_precision}, recall: {self.test_recall}")
         
@@ -75,18 +80,21 @@ class XGBoostMatch(LinkerBase):
         """Generate probability prediction for a comparison pair."""
         return self.model.predict_proba(comp_mat) #FIXME check that this is the correct probability
     
-    def run(self, outfile, chunksize=100000): #FIXME output progress stats
+    def run(self, outfile, chunksize=100000):
         """Run the model on the full compare set, writing results to file."""
         comp_mat = np.ndarray((chunksize, self.comp_eng.ncompares), dtype=np.float32)
         with tqdm(total=self.compareset.ncompares) as pbar:
-            pbar.set_description("Predicting links...")
+            #pbar.set_description("Predicting links...")
             with open(outfile, "wb") as f:
                 for cand_mat in self.compareset.get_pairs(chunksize=chunksize):
                     rec1 = self.recordset1.get_records(cand_mat[0])
                     rec2 = self.recordset2.get_records(cand_mat[1])
                     comp_mat = self.comp_eng.compare(rec1, rec2)
                     preds = self.link_proba(comp_mat)
-                    np.savetxt(f, np.concatenate((np.array(cand_mat).T, preds), axis=1)[:,[0,1,4]], fmt="%i %i %1.4f") #FIXME make saving more clear what's what.
+					#import pdb; pdb.set_trace()
+					#print("Concatenated matrix " + np.concatenate((np.array(cand_mat).T, preds), axis=1))
+					#print("Matrix to print " + np.concatenate((np.array(cand_mat).T, preds), axis=1)[:,[0,1,3]])
+                    np.savetxt(f, np.concatenate((np.array(cand_mat).T, preds), axis=1)[:,[0,1,3]], fmt="%i %i %1.4f") #FIXME make saving more clear what's what.
                     pbar.update(chunksize)
         print("Linking completed")
  
@@ -110,13 +118,15 @@ class XGBoostMatch(LinkerBase):
     def save(self, path): #FIXME this isn't all that I want to save
         if not os.path.isdir(path):
             os.mkdir(path)
-        with open(f"{path}/model.xgboost", "w") as file:
+        with open(f"{path}/model.xgboost", 'wb') as file: #FIXME add a prompt if the user will override an old model.
             pkl.dump(self.model, file)
-        with open(f"{path}/model_features.json", "w") as file:
-            file.write(f"'training_time': {self.time_taken}, 'confusion_mat': {self.confusion_mat},'precision': {self.test_precision}, 'recall': {self.test_recall}, 'hyper_params': {self.hyper_params}")
+        with open(f"{path}/model_features.json", 'w') as file:
+            file.write(f"{{'training_time': {self.time_taken}, 'confusion_mat': {self.confusion_mat},'precision': {self.test_precision}, 'recall': {self.test_recall}, 'hyper_params': {self.hyper_params}}}")
+        self.comp_eng.save(f"{path}/fe.csv")
+        
                   
     def load(self, path): #FIXME this isn't all that I want to load
-        with open(f"{path}/model.xgboost", "r") as file:
+        with open(f"{path}/model.xgboost", "rb") as file:
             self.model = pkl.load(file)
         with open(f"{path}/model_features.json", "r") as file:
             json_data = json.load(file)
@@ -125,3 +135,13 @@ class XGBoostMatch(LinkerBase):
                       'hyper_params': self.hyper_params}
             for key in params:
                 params[key] = json_data[key]
+        self.comp_eng.load(f"{path}/fe.csv")
+
+if __name__=='__main__':
+    import sys
+    from record_set import RecordDataFrame
+    from pairs_set import PairsCOO, PairsMatrix
+    from feature_engineer import FeatureEngineer
+    from xgboost_match import XGBoostMatch
+    from record_set import RecordDB
+    
