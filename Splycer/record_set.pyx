@@ -42,7 +42,7 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
        sql handles a lot of the hard work of building data structures for efficient
        merges. You have to pay the upfront cost of setting up the database though.
     """
-    def __init__(self, record_id, table_name, idx_name, dsn):
+    def __init__(self, record_id, table_name, idx_name, dsn, extra_joins=''):
         self.record_id = record_id
         self.var_list = None
         self.table_name = table_name
@@ -50,7 +50,7 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
         options = turbodbc.make_options(prefer_unicode=True) #Apparently necessary for MS sql servers.
         self.conn = turbodbc.connect(dsn=dsn, turbodbc_options=options)
         self.cursor = self.conn.cursor()
-        self.extra_joins = ""
+        self.extra_joins = extra_joins
         """
         self.cursor.execute(f"select column_name from information_schema.columns where table_name = '{self.table_name}'")
         cols = self.cursor.fetchall()
