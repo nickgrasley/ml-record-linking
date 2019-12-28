@@ -84,7 +84,7 @@ class XGBoostMatch(LinkerBase):
         """Run the model on the full compare set, writing results to file."""
         comp_mat = np.ndarray((chunksize, self.comp_eng.ncompares), dtype=np.float32)
         with tqdm(total=self.compareset.ncompares) as pbar:
-            #pbar.set_description("Predicting links...")
+            pbar.set_description("Predicting links...")
             with open(outfile, "wb") as f:
                 for cand_mat in self.compareset.get_pairs(chunksize=chunksize):
                     rec1 = self.recordset1.get_records(cand_mat[0])
@@ -121,7 +121,7 @@ class XGBoostMatch(LinkerBase):
         with open(f"{path}/model.xgboost", 'wb') as file: #FIXME add a prompt if the user will override an old model.
             pkl.dump(self.model, file)
         with open(f"{path}/model_features.json", 'w') as file:
-            file.write(f"{{'training_time': {self.time_taken}, 'confusion_mat': {self.confusion_mat},'precision': {self.test_precision}, 'recall': {self.test_recall}, 'hyper_params': {self.hyper_params}}}")
+            file.write(f"{{'training_time': {self.train_time}, 'confusion_mat': {self.confusion_mat},'precision': {self.test_precision}, 'recall': {self.test_recall}, 'hyper_params': {self.hyper_params}}}")
         self.comp_eng.save(f"{path}/fe.csv")
         
                   
@@ -130,7 +130,7 @@ class XGBoostMatch(LinkerBase):
             self.model = pkl.load(file)
         with open(f"{path}/model_features.json", "r") as file:
             json_data = json.load(file)
-            params = {'training_time': self.time_taken, 'confusion_mat': self.confusion_mat,
+            params = {'training_time': self.train_time, 'confusion_mat': self.confusion_mat,
                       'precision': self.test_precision, 'recall': self.test_recall,
                       'hyper_params': self.hyper_params}
             for key in params:
