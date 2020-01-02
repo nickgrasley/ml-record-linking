@@ -80,7 +80,7 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
             data = pd.read_sql(f"select * from {self.table_name} where {self.idx_name} in {tuple(uids)} {self.extra_joins}", self.conn)
         else:
             data = pd.read_sql(f"select {self.var_list} from {self.table_name} where {self.idx_name} in {tuple(uids)} {self.extra_joins}", self.conn)
-        return data.set_index('index')[uids].reset_index().rename(columns={'index':self.idx_name})
+        return data.set_index('index').loc[uids].reset_index().rename(columns={'index':self.idx_name})
 
 class RecordDataFrame(RecordBase):
     """Records are stored in a Pandas DataFrame. This is best for small datasets
