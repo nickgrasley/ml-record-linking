@@ -44,7 +44,7 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
        sql handles a lot of the hard work of building data structures for efficient
        merges. You have to pay the upfront cost of setting up the database though.
     """
-    def __init__(self, record_id, table_name, idx_name, dsn, extra_joins='',chunksize=10000):
+    def __init__(self, record_id, table_name, idx_name, dsn, extra_joins=''):
         self.record_id = record_id
         self.var_list = None
         self.table_name = table_name
@@ -53,7 +53,6 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
         self.conn = turbodbc.connect(dsn=dsn, turbodbc_options=options)
         self.cursor = self.conn.cursor()
         self.extra_joins = extra_joins
-        self.chunksize = chunksize
         """
         self.cursor.execute(f"select column_name from information_schema.columns where table_name = '{self.table_name}'")
         cols = self.cursor.fetchall()
@@ -86,13 +85,18 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
             yield l[i:i+n]
           
     def get_records(self, uids):
-        data_frames=[]
-        for chunk_uids in tqdm(self.chunks(uids,self.chunksize)):
-            if self.var_list is None:
-                data_frames.append(pd.read_sql(f"select * from {self.table_name} where {self.idx_name} in {tuple(chunk_uids)} {self.extra_joins}", self.conn))
-            else:
-                data_frames.append(pd.read_sql(f"select {self.var_list} from {self.table_name} where {self.idx_name} in {tuple(uids)} {self.extra_joins}", self.conn))
-        data=pd.concat(data_frames).drop_duplicates()
+        indices=np.expand_dims(np.unique(np.array(uids)),axis=0).T.tolist()
+        self.cursor.execute('create table temp_idx ([index_] int not null primary key)')
+        self.cursor.executemany('INSERT INTO temp_idx VALUES (?)',indices)
+        self.conn.commit()
+        
+        if self.var_list is None:
+            data=pd.read_sql(f"select * from {self.table_name} right join temp_idx on (temp_idx.[index]={self.table_name}.[index]) {self.extra_joins}", self.conn)
+        else:
+            data=pd.read_sql(f"select {self.var_list} from {self.table_name} right join temp_idx on (temp_idx.[index_]={self.table_name}.[index]) {self.extra_joins}", self.conn)
+        
+        self.cursor.execute('drop table temp_idx') # delete temp table after merge complete
+        self.conn.commit()
         return data.set_index('index').loc[uids].reset_index().rename(columns={'index':self.idx_name})
     
  
