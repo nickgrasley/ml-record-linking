@@ -94,7 +94,7 @@ class PairsDB(PairsBase):
         self.idx_cols = idx_cols
         self.conn = turbodbc.connect(dsn=dsn)
         self.cursor = self.conn.cursor()
-        ncompares = self.cursor.execute(f"select count(*) from {self.table_name}").fetchone()
+        ncompares = self.cursor.execute(f"select count(*) from {self.table_name}").fetchone()[0]
         super().__init__(ncompares)
 
     def __iter__(self):
