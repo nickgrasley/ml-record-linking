@@ -121,7 +121,7 @@ class XGBoostMatch(LinkerBase):
         with open(f"{path}/model.xgboost", 'wb') as file: #FIXME add a prompt if the user will override an old model.
             pkl.dump(self.model, file)
         with open(f"{path}/model_features.json", 'w') as file:
-            file.write(f"{{'training_time': {self.train_time}, 'confusion_mat': {self.confusion_mat},'precision': {self.test_precision}, 'recall': {self.test_recall}, 'hyper_params': {self.hyper_params}}}")
+            file.write(f"{{'training_time': {self.train_time}, 'confusion_mat': {self.confusion_mat},'precision': {self.test_precision}, 'recall': {self.test_recall}}}")
         self.comp_eng.save(f"{path}/fe.csv")
         
                   
@@ -132,7 +132,7 @@ class XGBoostMatch(LinkerBase):
             json_data = json.load(file)
             params = {'training_time': self.train_time, 'confusion_mat': self.confusion_mat,
                       'precision': self.test_precision, 'recall': self.test_recall,
-                      'hyper_params': self.hyper_params}
+                      }
             for key in params:
                 params[key] = json_data[key]
         self.comp_eng.load(f"{path}/fe.csv")
