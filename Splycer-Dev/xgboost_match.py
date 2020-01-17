@@ -94,7 +94,7 @@ class XGBoostMatch(LinkerBase):
 					#import pdb; pdb.set_trace()
 					#print("Concatenated matrix " + np.concatenate((np.array(cand_mat).T, preds), axis=1))
 					#print("Matrix to print " + np.concatenate((np.array(cand_mat).T, preds), axis=1)[:,[0,1,3]])
-                    np.savetxt(f, np.concatenate((np.array(cand_mat).T, preds), axis=1)[:,[0,1,3]], fmt="%i %i %1.4f") #FIXME make saving more clear what's what.
+                    np.savetxt(f, delimiter=',', np.concatenate((np.array(cand_mat).T, preds), axis=1)[:,[0,1,3]], fmt="%i %i %1.4f") #FIXME make saving more clear what's what.
                     pbar.update(chunksize)
         print("Linking completed")
  
@@ -121,7 +121,7 @@ class XGBoostMatch(LinkerBase):
         with open(f"{path}/model.xgboost", 'wb') as file: #FIXME add a prompt if the user will override an old model.
             pkl.dump(self.model, file)
         with open(f"{path}/model_features.json", 'w') as file:
-            file.write(f"{{'training_time': {self.train_time}, 'confusion_mat': {self.confusion_mat},'precision': {self.test_precision}, 'recall': {self.test_recall}}}")
+            file.write(f'''{{"training_time": {self.train_time}, "confusion_mat": {self.confusion_mat},"precision": {self.test_precision}, "recall": {self.test_recall}}}''')
         self.comp_eng.save(f"{path}/fe.csv")
         
                   
