@@ -75,27 +75,30 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
             data = pd.read_sql(f"select * from {self.table_name} where {self.idx_name} = {uid} {self.extra_joins}", self.conn)
         else:
             data = pd.read_sql(f"select {self.var_list} from {self.table_name} where {self.idx_name} = {uid} {self.extra_joins}", self.conn)
-        return data
-        
-    def chunks(self, l, n):
-    # divides a list into n-sized chunks. Used for get_records in record_db class
-    # to read in SQL data chunk wise-- this prevents overly complex SQL queries
-        for i in range(0, len(l), n):
-            # Create an index range for l of n items:
-            yield l[i:i+n]
+        return data       
           
     def get_records(self, uids):
         indices=np.expand_dims(np.unique(np.array(uids)),axis=0).T.tolist()
-        self.cursor.execute('create table temp_idx ([index_] int not null primary key)')
-        self.cursor.executemany('INSERT INTO temp_idx VALUES (?)',indices)
+        
+        # create new table that doesn't exist. This allows for multiple users to run get_records
+        # at once without writing/reading from same temporary table
+        table_exists,i=True,-1
+        while table_exists:
+            i+=1
+            table_exists = self.cursor.execute(f"if object_id('dbo.temp_idx{i}', 'U') is not null select 1 else select 0").fetchone()[0]
+            
+        
+        self.cursor.execute(f'create table temp_idx{i} ([index_] int not null primary key)') # create temporary table
+        self.cursor.executemany(f'INSERT INTO temp_idx{i} VALUES (?)',indices) # insert target people indices into new table
         self.conn.commit()
         
+        # merge temporary table indices onto record_set table
         if self.var_list is None:
-            data=pd.read_sql(f"select * from {self.table_name} right join temp_idx on (temp_idx.[index]={self.table_name}.[index]) {self.extra_joins}", self.conn)
+            data=pd.read_sql(f"select * from {self.table_name} right join temp_idx{i} on (temp_idx{i}.[index]={self.table_name}.[index]) {self.extra_joins}", self.conn)
         else:
-            data=pd.read_sql(f"select {self.var_list} from {self.table_name} right join temp_idx on (temp_idx.[index_]={self.table_name}.[index]) {self.extra_joins}", self.conn)
+            data=pd.read_sql(f"select {self.var_list} from {self.table_name} right join temp_idx{i} on (temp_idx{i}.[index_]={self.table_name}.[index]) {self.extra_joins}", self.conn)
         
-        self.cursor.execute('drop table temp_idx') # delete temp table after merge complete
+        self.cursor.execute(f'drop table temp_idx{i}') # delete temp table after merge complete
         self.conn.commit()
         return data.set_index('index').loc[uids].reset_index().rename(columns={'index':self.idx_name})
     
