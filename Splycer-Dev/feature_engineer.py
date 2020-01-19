@@ -12,8 +12,8 @@ import json
 from collections import OrderedDict
 from ast import literal_eval
 import numpy as np
-from splycer.base import FeatureBase
-from splycer.comparisons import JW, EuclideanDistance, GeoDistance, BiGram, TriGram, NGram,\
+from base import FeatureBase
+from comparisons import JW, EuclideanDistance, GeoDistance, BiGram, TriGram, NGram,\
                         BooleanMatch, AbsDistance
 
 class FeatureEngineer(FeatureBase):
@@ -117,15 +117,12 @@ class FeatureEngineer(FeatureBase):
     def save(self, file_path):
         """Save the feature engineer at the specified file path."""
         with open(file_path, 'w') as f:
-            for comp in self.raw_compares:
-                f.write(f"comp[0],comp[1],comp[2]\n")
+            f.write(json.dumps(self.raw_compares))
 
     def load(self, file_path):
         """Load the feature engineer from the specified file path."""
         self.__init__()
-        with open(file_path, 'r') as f:
-            file_str = f.readline()
-            while file_str:
-                comp = file_str.split(',')
-                self.add_comparison(comp[0], comp[1], comp[2])
-                file_str.readline()
+        with open(file_path, 'rb') as f:
+            data=json.load(f)
+        for comp in data:
+            self.add_comparison(comp[0],comp[1],comp[2])
