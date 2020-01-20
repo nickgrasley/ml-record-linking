@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # cython: profile=True
-"""
-Created on Thu Jul 18 11:22:25 2019
-
-@author: thegrasley
-"""
 
 import pickle as pkl
 import os
@@ -23,10 +18,11 @@ class XGBoostMatch(LinkerBase):
     """This class either trains a new model given the data or generates predictions
        using a previously trained model.
     """
-    def __init__(self, recordset1, recordset2, compareset, comp_eng, model):
+    def __init__(self, recordset1, recordset2, compareset, comp_eng, model=None):
         super().__init__(recordset1, recordset2, compareset)
         self.comp_eng = comp_eng
         self.model = model
+        self.confusion_mat,self.test_precision,self.test_recall,self.train_time=[],0,0,0
 
     def create_training_set(self, maxsize=1000000):
         """Used in the train function. Generate comparison vectors."""
@@ -80,7 +76,7 @@ class XGBoostMatch(LinkerBase):
         """Generate probability prediction for a comparison pair."""
         return self.model.predict_proba(comp_mat) #FIXME check that this is the correct probability
     
-    def run(self, outfile, chunksize=100000):
+    def run(self, outfile,chunksize=100000,logfile='log.txt'):
         """Run the model on the full compare set, writing results to file."""
         comp_mat = np.ndarray((chunksize, self.comp_eng.ncompares), dtype=np.float32)
         with tqdm(total=self.compareset.ncompares) as pbar:
@@ -89,7 +85,12 @@ class XGBoostMatch(LinkerBase):
                 for cand_mat in self.compareset.get_pairs(chunksize=chunksize):
                     rec1 = self.recordset1.get_records(cand_mat[0])
                     rec2 = self.recordset2.get_records(cand_mat[1])
-                    comp_mat = self.comp_eng.compare(rec1, rec2)
+                    try:
+                        comp_mat = self.comp_eng.compare(rec1, rec2)
+                    except:
+                        with open(logfile,"a") as l:
+                            l.write(f'failed to compile data for indices {cand_mat[0][0]} to {cand_mat[0][-1]}\n')
+                        continue
                     preds = self.link_proba(comp_mat)
 					#import pdb; pdb.set_trace()
 					#print("Concatenated matrix " + np.concatenate((np.array(cand_mat).T, preds), axis=1))
@@ -118,24 +119,34 @@ class XGBoostMatch(LinkerBase):
     def save(self, path): #FIXME this isn't all that I want to save
         if not os.path.isdir(path):
             os.mkdir(path)
-        with open(f"{path}/model.xgboost", 'wb') as file: #FIXME add a prompt if the user will override an old model.
-            pkl.dump(self.model, file)
-        with open(f"{path}/model_features.json", 'w') as file:
-            file.write(f"{{'training_time': {self.train_time}, 'confusion_mat': {self.confusion_mat},'precision': {self.test_precision}, 'recall': {self.test_recall}, 'hyper_params': {self.hyper_params}}}")
-        self.comp_eng.save(f"{path}/fe.csv")
+        exists = os.path.isfile(f"{path}/model.xgboost")    
+        if exists:
+            while True:
+                x=input('Model exists in specified path. Are you sure you want to override old model? [Y/N]')
+                if x=='Y': 
+                    exists=False
+                    break
+                elif x=='N': break
+                else: print('invalid input.')
+        if not exists:
+            with open(f"{path}/model.xgboost", 'wb') as file: #FIXME add a prompt if the user will override an old model.
+                pkl.dump(self.model, file)
+            with open(f"{path}/model_scores.json", 'w') as file:
+                file.write(f'''{{"training_time": {self.train_time}, "confusion_mat": {list(self.confusion_mat)},"precision": {self.test_precision}, "recall": {self.test_recall}}}''')
+            self.comp_eng.save(f"{path}/fe.json")
         
                   
     def load(self, path): #FIXME this isn't all that I want to load
         with open(f"{path}/model.xgboost", "rb") as file:
             self.model = pkl.load(file)
-        with open(f"{path}/model_features.json", "r") as file:
+        with open(f"{path}/model_scores.json", "r") as file:
             json_data = json.load(file)
             params = {'training_time': self.train_time, 'confusion_mat': self.confusion_mat,
                       'precision': self.test_precision, 'recall': self.test_recall,
-                      'hyper_params': self.hyper_params}
+                      }
             for key in params:
                 params[key] = json_data[key]
-        self.comp_eng.load(f"{path}/fe.csv")
+        self.comp_eng.load(f"{path}/fe.json")
 
 if __name__=='__main__':
     import sys
