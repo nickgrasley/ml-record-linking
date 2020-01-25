@@ -42,7 +42,7 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
        sql handles a lot of the hard work of building data structures for efficient
        merges. You have to pay the upfront cost of setting up the database though.
     """
-    def __init__(self, record_id, table_name, idx_name, dsn):
+    def __init__(self, record_id, table_name, idx_name, dsn, extra_joins=''):
         self.record_id = record_id
         self.var_list = None
         self.table_name = table_name
@@ -50,7 +50,7 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
         options = turbodbc.make_options(prefer_unicode=True) #Apparently necessary for MS sql servers.
         self.conn = turbodbc.connect(dsn=dsn, turbodbc_options=options)
         self.cursor = self.conn.cursor()
-        self.extra_joins = ""
+        self.extra_joins = extra_joins
         """
         self.cursor.execute(f"select column_name from information_schema.columns where table_name = '{self.table_name}'")
         cols = self.cursor.fetchall()
@@ -67,21 +67,40 @@ class RecordDB(RecordBase): #FIXME this class assumes a standardized naming conv
 
     def __getitem__(self, uid):
         return self.get_record(uid)
-
+               
     def get_record(self, uid):
         if self.var_list is None:
             data = pd.read_sql(f"select * from {self.table_name} where {self.idx_name} = {uid} {self.extra_joins}", self.conn)
         else:
             data = pd.read_sql(f"select {self.var_list} from {self.table_name} where {self.idx_name} = {uid} {self.extra_joins}", self.conn)
-        return data
-#FIXME return records from get_records in same order as uid list
+        return data       
+          
     def get_records(self, uids):
+        indices=np.expand_dims(np.unique(np.array(uids)),axis=0).T.tolist()
+        
+        # create new table that doesn't exist. This allows for multiple users to run get_records
+        # at once without writing/reading from same temporary table
+        table_exists,i=True,-1
+        while table_exists:
+            i+=1
+            table_exists = self.cursor.execute(f"if object_id('dbo.temp_idx{i}', 'U') is not null select 1 else select 0").fetchone()[0]
+            
+        
+        self.cursor.execute(f'create table temp_idx{i} ([index_] int not null primary key)') # create temporary table
+        self.cursor.executemany(f'INSERT INTO temp_idx{i} VALUES (?)',indices) # insert target people indices into new table
+        self.conn.commit()
+        
+        # merge temporary table indices onto record_set table
         if self.var_list is None:
-            data = pd.read_sql(f"select * from {self.table_name} where {self.idx_name} in {tuple(uids)} {self.extra_joins}", self.conn)
+            data=pd.read_sql(f"select * from {self.table_name} right join temp_idx{i} on (temp_idx{i}.[index]={self.table_name}.[index]) {self.extra_joins}", self.conn)
         else:
-            data = pd.read_sql(f"select {self.var_list} from {self.table_name} where {self.idx_name} in {tuple(uids)} {self.extra_joins}", self.conn)
-        return data.set_index('index')[uids].reset_index().rename(columns={'index':self.idx_name})
-
+            data=pd.read_sql(f"select {self.var_list} from {self.table_name} right join temp_idx{i} on (temp_idx{i}.[index_]={self.table_name}.[index]) {self.extra_joins}", self.conn)
+        
+        self.cursor.execute(f'drop table temp_idx{i}') # delete temp table after merge complete
+        self.conn.commit()
+        return data.set_index('index').loc[uids].reset_index().rename(columns={'index':self.idx_name})
+    
+ 
 class RecordDataFrame(RecordBase):
     """Records are stored in a Pandas DataFrame. This is best for small datasets
        with a limited number of string features, or if you need to block and don't

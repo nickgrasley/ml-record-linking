@@ -94,7 +94,7 @@ class PairsDB(PairsBase):
         self.idx_cols = idx_cols
         self.conn = turbodbc.connect(dsn=dsn)
         self.cursor = self.conn.cursor()
-        ncompares = self.cursor.execute(f"select count(*) from {self.table_name}").fetchone()
+        ncompares = self.cursor.execute(f"select count(*) from {self.table_name}").fetchone()[0]
         super().__init__(ncompares)
 
     def __iter__(self):
@@ -116,9 +116,9 @@ class PairsDB(PairsBase):
         while len(rows) != 0:
             rows = np.array(rows)
             yield (rows[:,0], rows[:,1])
-            if rows[:,0].shape[0] < chunksize:
+            if rows.shape[0] < chunksize:
                 break
-            row = self.cursor.fetchmany(chunksize)
+            rows = self.cursor.fetchmany(chunksize)
 
 class PairsMatrix(PairsBase):
     """Comparisons are stored in a matrix, where matrix[i, j] = 1 if the two
