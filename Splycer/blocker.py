@@ -2,7 +2,7 @@
 """
 Created on Tue Aug  6 12:09:36 2019
 
-@author: Ben Busath
+@author: Ben Busath, Nick Grasley
 bbusath5@gmail.com
 """
 import numpy as np
@@ -16,10 +16,20 @@ class BlockDB(PairsDB):
     """Here's a prototype of a clever way of blocking that I came up with.
        The idea is that the blocks parameter of the block() function is a list
        of different blocks. For example, blocks could be
-       [["first_soundex", "birth_year <= 4"], ["last_soundex", "bp"]]. ["first_soundex", "birth_year"]
+       [["first_soundex", "birth_year <= 4"], ["last_soundex", "bp"]]. ["first_soundex", "birth_year <= 10"]
        is a block, meaning if two records are compared, they must match on both
-       of those variables. A compare can show up if it satisfies either of the blocks.
-       Be warned, I haven't tested this.
+       of those variables.
+
+        Extra joins can be thought of as filters for your blocks. These are arguments that will be passed in as
+        arguments in the where clause. extra_joins should be entered as a list of strings formatted like sql conditionals.
+        Each extra join will coincide with each block, so the length should be the same as blocks.
+        An example of a potential extra joins argument could be
+        ['t1.race = 1 and t2.race = 1','t1.bp = 50 and t2.mbp = 50'].
+
+        Note that t1 and t2 are aliases for the two SQL tables you are blocking from.
+        Extra joins are completely optional.
+        A compare can show up if it satisfies either of the blocks (and their associated extra joins if provided).
+
     """
 
     def __init__(self, record_id1, record_id2, table_name, dsn_str, idx_cols, table1, table2):
@@ -136,7 +146,7 @@ class BlockDB(PairsDB):
             self.cursor.execute(sql_str)
 
 
-        #self.cursor.execute('DROP TABLE training_temp')
+        self.cursor.execute('DROP TABLE training_temp')
         self.conn.commit()
 
 
