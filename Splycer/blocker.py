@@ -89,8 +89,8 @@ class BlockDB(PairsDB):
         # Create temp table storing index IDs with order variable
         # this allows us to have a chunksize blocking option
 
-        #if self.table_exists('training_temp'):
-        #    self.cursor.execute('drop table training_temp')
+        if self.table_exists('training_temp'):
+            self.cursor.execute('drop table training_temp')
 
         sql_str = f'''
         Create Table training_temp(
@@ -100,13 +100,13 @@ class BlockDB(PairsDB):
             )
         '''
         print('creating temp SQL table...')
-        #self.cursor.execute(sql_str)
-        #self.conn.commit()
+        self.cursor.execute(sql_str)
+        self.conn.commit()
 
         # insert table1 index data into temp table
         print(f'uploading {self.table1} indices to temp table...')
-        #self.cursor.execute(f'INSERT INTO training_temp ([index]) SELECT [index] FROM {self.table1}')
-        #self.conn.commit()
+        self.cursor.execute(f'INSERT INTO training_temp ([index]) SELECT [index] FROM {self.table1}')
+        self.conn.commit()
 
         row_count = self.get_row_count('training_temp')
         print(f'total indices to block: {row_count}')
@@ -128,12 +128,13 @@ class BlockDB(PairsDB):
                                                 and train.ID > {batch_min}
                                                 and t1.[index] is not null {extra_join} UNION '''
             sql_str = sql_str[:-7]
+            # FIXME: below line gives primary key error, don't know why
             #sql_str += ' ORDER BY t1.[index]'
             if print_query:
                 print(sql_str)
 
             self.cursor.execute(sql_str)
-            break
+
 
         #self.cursor.execute('DROP TABLE training_temp')
         self.conn.commit()
