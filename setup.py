@@ -20,8 +20,8 @@ ext_modules=[
 
 setup(name="splycer",
       version="0.1.6",
-      packages=["splycer",],
+      packages=["splycer"],
       ext_modules=cythonize(ext_modules),
-      include_dirs = [np.get_include()],
+      include_dirs=[np.get_include()],
       long_description=open("README.md").read()
 )
