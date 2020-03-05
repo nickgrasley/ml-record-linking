@@ -2,7 +2,7 @@
 """
 Created on Sat Dec 28 13:19:27 2019
 
-@author: bbusa
+This code compiles a census
 """
 import turbodbc
 import pandas as pd
@@ -47,13 +47,13 @@ class CensusCompiler():
             bp_comm       [int],
             first_comm    [float],
             last_comm     [float],
-            first         nvarchar(50),
+            first         nvarchar(75),
             last          nvarchar(90),
             bp_lat        [float],
             bp_lon        [float],
             res_lat       [float],
             res_lon       [float],
-            full_name     nvarchar(50)
+            full_name     nvarchar(75)
             )
         '''
         self.cursor.execute(sql_str)
@@ -70,6 +70,9 @@ class CensusCompiler():
         return pd.read_sql(sql_str,self.conn).values[0][0]
     
     def compile_census(self,chunksize=10000000):
+        '''
+        Compiles census data for use in splycer feature engineer
+        '''
         for chunk_start in range(0,self.table_len,chunksize):
             chunk_end=chunk_start + chunksize
             print(f'''compiling rows {chunk_start} to {chunk_end}...''')
@@ -123,7 +126,7 @@ class CensusCompiler():
               '''
             self.cursor.execute(sql_str)
             self.conn.commit()
-            print('Finished!')
+        print('Finished!')
 
 if __name__=='__main__':
     cc=CensusCompiler(1930,'rec_db')
